@@ -15,6 +15,9 @@ DEMO = sorted((ROOT / "data" / "snapshots").glob("*.json"))
 APP = str(ROOT / "stand" / "app.py")
 PAGES = ["overview", "teachers", "rooms", "disciplines", "groups", "quality", "spellings", "export"]
 
+# Сверка автоправил со словарём (точность, полнота): замер 2026-10-07 минус 1 п.п.
+AUDIT_FLOORS = {"discipline": (0.94, 0.73), "teacher": (0.96, 0.81)}
+
 pytestmark = pytest.mark.skipif(not DEMO, reason="нет демо-снапшота в data/snapshots")
 
 
@@ -28,8 +31,12 @@ def test_demo_snapshot_loads_with_reasonable_quality(tmp_path):
     shares = conn.execute("SELECT AVG(has_type), AVG(has_discipline), AVG(has_teacher), AVG(has_room),"
                           " AVG(needs_review) FROM quality").fetchone()
     # поэлементно: сравнение кортежей лексикографическое и проверяло бы только первое поле
-    assert all(s > floor for s, floor in zip(shares[:4], (0.9, 0.9, 0.9, 0.85))), shares
+    assert all(s > floor for s, floor in zip(shares[:4], (0.9, 0.9, 0.9, 0.94))), shares
     assert shares[4] < 0.2
+    audit = {k: (tp, fp, fn) for k, tp, fp, fn in conn.execute("SELECT kind, tp, fp, fn FROM rule_audit")}
+    for kind, (min_precision, min_recall) in AUDIT_FLOORS.items():
+        tp, fp, fn = audit[kind]
+        assert tp / (tp + fp) >= min_precision and tp / (tp + fn) >= min_recall, (kind, audit[kind])
     started = time.monotonic()
     q.cells_quality_frame(conn, 1)            # без индексов по lesson_id — секунды
     assert time.monotonic() - started < 2
