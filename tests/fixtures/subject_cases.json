@@ -1632,6 +1632,298 @@
      }
     ]
    }
+  },
+  {
+   "id": "sem-abbrev-not-marker",
+   "category": "тип: ложный маркер",
+   "raw": "лаб.з. Защита растений сем. посевов Руденко, Бузина 424",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Защита растений сем. посевов",
+      "teachers": [
+       "Руденко",
+       "Бузина"
+      ],
+      "rooms": [
+       "424"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   },
+   "note": "«сем.» = семенных; семинар распознаётся только в начале строки"
+  },
+  {
+   "id": "lab-abbrev-not-marker",
+   "category": "тип: ложный маркер",
+   "raw": "лаб.з. Лаб.диагност. 2п/г лаб.терап. асс.Козлов С.Е.",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Лаб.диагност.",
+      "teachers": [
+       "Козлов С.Е."
+      ],
+      "rooms": [
+       "Лаб. терапии"
+      ],
+      "building": null,
+      "subgroup": 2
+     }
+    ]
+   },
+   "note": "«Лаб.диагност.» — дисциплина: после «лаб.» сразу строчная буква"
+  },
+  {
+   "id": "double-marker",
+   "category": "тип: маркер повторён",
+   "raw": "лек. лек. ИСТОРИЯ РОССИИ доц. Котельников В.А. 406 УК 2",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ИСТОРИЯ РОССИИ",
+      "teachers": [
+       "Котельников В.А."
+      ],
+      "rooms": [
+       "406"
+      ],
+      "building": "УК2",
+      "subgroup": null
+     }
+    ]
+   },
+   "note": "пустой сегмент между маркерами отбрасывается"
+  },
+  {
+   "id": "zachet-time",
+   "category": "тип: зачёт со временем",
+   "raw": "ЗАЧЕТ с 13.40 Основы военной подготовки доц. Хизов А.В. ауд. 344",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "зачёт",
+      "discipline": "Основы военной подготовки",
+      "teachers": [
+       "Хизов А.В."
+      ],
+      "rooms": [
+       "344"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   },
+   "note": "«с 13.40» — время, не дисциплина и не аудитория"
+  },
+  {
+   "id": "room-glued-to-initials",
+   "category": "аудитория: приклеена к инициалам",
+   "raw": "лек.АГРОРОБОТИЗИР СРЕДСТ доц. Шардина Г.Е.131",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "АГРОРОБОТИЗИР СРЕДСТ",
+      "teachers": [
+       "Шардина Г.Е."
+      ],
+      "rooms": [
+       "131"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "named-room-capital-aud",
+   "category": "аудитория: именованная",
+   "raw": "лек. А Н А Т О М И Я Ж И В О Т Н Ы Х доцент Копчекчи М.Е. Ауд.Большая",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "АНАТОМИЯЖИВОТНЫХ",
+      "teachers": [
+       "Копчекчи М.Е."
+      ],
+      "rooms": [
+       "Большая"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   },
+   "note": "в PDF между словами при разрядке одинарный пробел — слова слипаются; это чинит fuzzy-склейка в normalize"
+  },
+  {
+   "id": "initials-space-no-dot",
+   "category": "преподаватель: инициалы без точки между",
+   "raw": "лек. Б Е З О П А С Н О С Т Ь Ж И З Н Е Д Е Я Т Е Л Ь Н О С Т И доцент Карпова О В. ауд.Большая",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "БЕЗОПАСНОСТЬЖИЗНЕДЕЯТЕЛЬНОСТИ",
+      "teachers": [
+       "Карпова О.В."
+      ],
+      "rooms": [
+       "Большая"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "lab-inyaz",
+   "category": "аудитория: именованная",
+   "raw": "пр.з. Иностранный язык лаб.Ин-яз ст.пр.Дидусенко Е.Н.",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Иностранный язык",
+      "teachers": [
+       "Дидусенко Е.Н."
+      ],
+      "rooms": [
+       "Лаб. иностранных языков"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "lab-morf",
+   "category": "аудитория: именованная",
+   "raw": "лаб.з. Цитология, гистология и эмбриология лаб.морф. проф.Зирук И.В.",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Цитология, гистология и эмбриология",
+      "teachers": [
+       "Зирук И.В."
+      ],
+      "rooms": [
+       "Лаб. морфологии"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "service-curator-united",
+   "category": "служебная строка",
+   "raw": "ЕДИНЫЙ КУРАТОРСКИЙ ЧАС",
+   "mode": "strict",
+   "expected": {
+    "service": true,
+    "lessons": []
+   }
+  },
+  {
+   "id": "room-two-digit-glued",
+   "category": "аудитория: двузначная в конце",
+   "raw": "лаб.з. общее устройство тракторов и автомобилей Демин Е.Е.33",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "общее устройство тракторов и автомобилей",
+      "teachers": [
+       "Демин Е.Е."
+      ],
+      "rooms": [
+       "33"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "room-two-digit",
+   "category": "аудитория: двузначная в конце",
+   "raw": "лек. ТЕОРЕТИЧЕСКАЯ МЕХАНИКА доц. Васильчиков В.В. 40",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ТЕОРЕТИЧЕСКАЯ МЕХАНИКА",
+      "teachers": [
+       "Васильчиков В.В."
+      ],
+      "rooms": [
+       "40"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "room-letter-x",
+   "category": "аудитория: буквенный корпус",
+   "raw": "лаб.з. Болезни собак и кошек проф. Козлов С.В. Х-31",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Болезни собак и кошек",
+      "teachers": [
+       "Козлов С.В."
+      ],
+      "rooms": [
+       "Х-31"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
   }
  ]
 }
