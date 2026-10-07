@@ -250,32 +250,58 @@ def _similar_surnames(a: str, b: str) -> bool:
     )
 
 
-def resolve_teachers(names: list[str]) -> tuple[dict[str, str], list[Merge]]:
-    """Канонизирует преподавателей в пределах снапшота.
+def _close_initials(a: str, b: str) -> bool:
+    """«А.В.»/«А.С.» — одна буква; «С.Е.»/«Е.С.» — переставлены."""
+    (a1, a2), (b1, b2) = (a[0], a[2]), (b[0], b[2])
+    return (a1 == b1) != (a2 == b2) or (a1 == b2 and a2 == b1)
 
-    1. Полные ФИО с одинаковыми инициалами и фамилиями, отличающимися одной
-       опечаткой (_similar_surnames), склеиваются; канон — самый частый вариант.
-    2. Фамилия без инициалов присоединяется к полному ФИО, если подходящее полное
-       ФИО ровно одно (сначала точное совпадение фамилии, затем с одной опечаткой).
-       Иначе остаётся как есть.
+
+def _gender_pair(a: str, b: str) -> bool:
+    a, b = _surname_key(a), _surname_key(b)
+    return a + "а" == b or b + "а" == a
+
+
+def resolve_teachers(names: list[str], disciplines_of: dict[str, set[str]] | None = None,
+                     fixed: dict[str, str] | None = None) -> tuple[dict[str, str], list[Merge]]:
+    """Канонизирует непроверенные написания преподавателей.
+
+    Цели склейки — проверенные ФИО (fixed) и уже принятые полные ФИО (по
+    убыванию частоты). Полное ФИО присоединяется:
+    - при тех же инициалах и той же фамилии или фамилии с одной опечаткой;
+    - при той же фамилии и инициалах, отличающихся одной буквой или
+      переставленных, — только если есть общая дисциплина;
+    - при тех же инициалах и фамилии, отличающейся родовым окончанием, — только
+      если есть общая дисциплина.
+    Фамилия без инициалов присоединяется к единственному полному ФИО с этой
+    фамилией, а при нескольких — к единственному, с кем у неё общая дисциплина.
     """
-    counts = Counter(names)
-    full = [n for n in counts if _FULL.match(n)]
-    bare = [n for n in counts if not _FULL.match(n)]
+    disciplines_of = disciplines_of or {}
+    fixed = fixed or {}
+    counts = Counter(n for n in names if n not in fixed)
     mapping: dict[str, str] = {}
     merges: list[Merge] = []
 
-    canon_full: list[str] = []
-    for name in sorted(full, key=lambda n: (-counts[n], n)):
+    canon_disc: dict[str, set[str]] = {}
+    for spelling, canon in fixed.items():
+        canon_disc.setdefault(canon, set()).update(disciplines_of.get(spelling, set()))
+    canon_full = [c for c in dict.fromkeys(fixed.values()) if _FULL.match(c)]
+
+    for name in sorted((n for n in counts if _FULL.match(n)), key=lambda n: (-counts[n], n)):
         m = _FULL.match(name)
+        mine = disciplines_of.get(name, set())
         target = None
         for c in canon_full:
             cm = _FULL.match(c)
-            if cm.group("i") != m.group("i"):
-                continue
-            if _surname_key(cm.group("s")) == _surname_key(m.group("s")):
+            same_i = cm.group("i") == m.group("i")
+            same_s = _surname_key(cm.group("s")) == _surname_key(m.group("s"))
+            shared = bool(mine & canon_disc.get(c, set()))
+            if same_i and same_s:
                 target = (c, 100.0)
-            elif _similar_surnames(cm.group("s"), m.group("s")):
+            elif same_i and _similar_surnames(cm.group("s"), m.group("s")):
+                target = (c, fuzz.ratio(c, name))
+            elif same_s and shared and _close_initials(cm.group("i"), m.group("i")):
+                target = (c, fuzz.ratio(c, name))
+            elif same_i and shared and _gender_pair(cm.group("s"), m.group("s")):
                 target = (c, fuzz.ratio(c, name))
             if target:
                 break
@@ -286,18 +312,23 @@ def resolve_teachers(names: list[str]) -> tuple[dict[str, str], list[Merge]]:
         else:
             canon_full.append(name)
             mapping[name] = name
+        canon_disc.setdefault(mapping[name], set()).update(mine)
 
     by_surname: dict[str, list[str]] = {}
     for c in canon_full:
         by_surname.setdefault(_surname_key(_FULL.match(c).group("s")), []).append(c)
 
-    for name in bare:
+    for name in (n for n in counts if not _FULL.match(n)):
         exact = by_surname.get(_surname_key(name), [])
         if len(exact) == 1:
             mapping[name] = exact[0]
             continue
-        if exact:                     # несколько полных ФИО с этой фамилией
-            mapping[name] = name
+        if exact:                     # несколько полных ФИО с этой фамилией — решает общая дисциплина
+            mine = disciplines_of.get(name, set())
+            shared = [c for c in exact if mine & canon_disc.get(c, set())]
+            mapping[name] = shared[0] if len(shared) == 1 else name
+            if len(shared) == 1:
+                merges.append(Merge("teacher", name, shared[0], 100.0))
             continue
         similar = [c for c in canon_full if _similar_surnames(_FULL.match(c).group("s"), name)]
         if len(similar) == 1:

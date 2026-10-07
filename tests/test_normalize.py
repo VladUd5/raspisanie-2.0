@@ -181,3 +181,47 @@ def test_sentence_case_lowercases_prepositions_and_keeps_abbreviations():
 ])
 def test_normalize_group(raw, expected):
     assert normalize_group(raw) == expected
+
+
+def test_initials_differ_by_one_letter_with_shared_discipline():
+    mapping, _ = resolve_teachers(["Анникова Л.В."] * 2 + ["Анникова Л.А."],
+                                  disciplines_of={"Анникова Л.В.": {"Клиническая диагностика"},
+                                                  "Анникова Л.А.": {"Клиническая диагностика"}})
+    assert mapping["Анникова Л.А."] == "Анникова Л.В."
+
+
+def test_swapped_initials_with_shared_discipline():
+    mapping, _ = resolve_teachers(["Козлов Е.С."] * 4 + ["Козлов С.Е."] * 3,
+                                  disciplines_of={"Козлов Е.С.": {"Лабораторная диагностика"},
+                                                  "Козлов С.Е.": {"Лабораторная диагностика"}})
+    assert mapping["Козлов С.Е."] == "Козлов Е.С."
+
+
+def test_different_initials_without_shared_discipline_stay_apart():
+    mapping, _ = resolve_teachers(["Кузьмин А.М."] * 6 + ["Кузьмин А.Н."] * 2,
+                                  disciplines_of={"Кузьмин А.М.": {"Общая физическая подготовка"},
+                                                  "Кузьмин А.Н.": {"Физическая культура и спорт"}})
+    assert mapping["Кузьмин А.Н."] == "Кузьмин А.Н."
+
+
+def test_bare_surname_goes_to_full_name_with_shared_discipline():
+    mapping, _ = resolve_teachers(
+        ["Антипова Е.Ю."] * 16 + ["Антипова Е.А."] * 3 + ["Антипова"] * 4,
+        disciplines_of={"Антипова Е.Ю.": {"Философия"}, "Антипова Е.А.": {"Педагогика"},
+                        "Антипова": {"Философия"}})
+    assert mapping["Антипова"] == "Антипова Е.Ю."
+    assert mapping["Антипова Е.А."] == "Антипова Е.А."     # «Е.А.» и «Е.Ю.» без общей дисциплины
+
+
+def test_gender_ending_with_shared_discipline():
+    mapping, _ = resolve_teachers(["Березкин А.С."] * 14 + ["Березкина А.С."] * 2,
+                                  disciplines_of={"Березкин А.С.": {"Тракторы и автомобили"},
+                                                  "Березкина А.С.": {"Тракторы и автомобили"}})
+    assert mapping["Березкина А.С."] == "Березкин А.С."
+
+
+def test_fixed_names_are_targets_and_not_remapped():
+    mapping, _ = resolve_teachers(["Торопова В.Ю."], fixed={"Торопова В.В.": "Торопова В.В."},
+                                  disciplines_of={"Торопова В.Ю.": {"Отраслевая экономика"},
+                                                  "Торопова В.В.": {"Отраслевая экономика"}})
+    assert mapping == {"Торопова В.Ю.": "Торопова В.В."}
