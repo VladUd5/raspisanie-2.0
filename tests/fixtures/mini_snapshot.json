@@ -1,0 +1,34 @@
+{
+ "collected_at": "2026-10-07T12:00:00",
+ "source_url": "www.vavilovsar.ru/ucheba/raspisanie-zanyatii",
+ "buildings": [
+  {"name": "uk1", "institutes": [{"name": "institut-agrobiznesa", "forms": [{"name": "ochnaya-forma-obucheniya", "groups": [
+   {"name": "Б-Э-101", "schedule": {"days": [
+    {"name": "понедельник", "lessons": [
+     {"time_from": "08:30", "time_to": "10:00", "subject": "лек. ИСТОРИЯ РОССИИ доц. Шалаева Н.В. 422"},
+     {"time_from": "10:10", "time_to": "11:40", "subject": "пр.з. История России Шалаева 422", "week": "numerator"},
+     {"time_from": "10:10", "time_to": "11:40", "subject": "пр.з. Иностранный язык Балашова 314", "week": "denominator"},
+     {"time_from": "12:00", "time_to": "13:30", "subject": "переход на УК 2"}
+    ]},
+    {"name": "вторник", "lessons": [
+     {"time_from": "08:30", "time_to": "10:00", "subject": "лек. ИСТОРИЯ МИРОВОЙ КУЛЬТУРЫ ст.преп. Аленичева Н.В. 314 пр.з. История мировой культуры Аленичева Н.В. 314"},
+     {"time_from": "10:10", "time_to": "11:40", "subject": "ОБЩАЯ ФИЗИЧЕСКАЯ ПОДГОТОВКА физ. зал Пяткина"}
+    ]}
+   ]}},
+   {"name": "Б-БИ-101", "schedule": {"days": [
+    {"name": "понедельник", "lessons": [
+     {"time_from": "08:30", "time_to": "10:00", "subject": "лек. ИСТОРИЯ РОССИИ доц. Шалаева Н.В. 422"},
+     {"time_from": "10:10", "time_to": "11:40", "subject": "пр.з. Иностанный язык Балашова 314"}
+    ]}
+   ]}}
+  ]}]}]},
+  {"name": "uk2", "institutes": [{"name": "institut-injenerii-i-robototexniki", "forms": [{"name": "ochnaya-forma-obucheniya", "groups": [
+   {"name": "бэ", "schedule": {"days": [
+    {"name": "среда", "lessons": [
+     {"time_from": "08:30", "time_to": "10:00", "subject": "лек. ФИЗИКА доц. Рыжова Е.В. 422"},
+     {"time_from": "10:10", "time_to": "11:40", "subject": "лб.з. физика Рыжова Е.В. 253"}
+    ]}
+   ]}}
+  ]}]}]}
+ ]
+}
