@@ -1,4 +1,6 @@
-from etl.normalize import cluster_disciplines, disc_key, is_surname_only, resolve_teachers
+import pytest
+
+from etl.normalize import cluster_disciplines, disc_key, is_surname_only, normalize_group, resolve_teachers
 
 
 def test_disc_key_ignores_case_yo_spaces_and_edge_punctuation():
@@ -126,3 +128,56 @@ def test_canonical_variant_is_not_logged_as_its_own_merge():
     # канон кластера («полная форма») не является представителем кластера — но и «склейкой» сам с собой не считается
     mapping, merges = cluster_disciplines(["ОБЩАЯ ФИЗ.ПОДГОТОВКА"] * 5 + ["Общая физическая подготовка"])
     assert all(m.alias != m.canonical for m in merges)
+
+
+def test_unverified_spelling_joins_dictionary_cluster_and_takes_its_canon():
+    mapping, merges = cluster_disciplines(["Иностанный язык"], anchors={"Иностранный язык": "Иностранный язык"})
+    assert mapping == {"Иностанный язык": "Иностранный язык"}
+    assert merges[0].alias == "Иностанный язык"
+
+
+def test_dictionary_canon_wins_over_frequency():
+    mapping, _ = cluster_disciplines(["ФИЗИКА"] * 5, anchors={"Физика": "Физика"})
+    assert mapping["ФИЗИКА"] == "Физика"
+
+
+def test_rules_do_not_pull_unrelated_names_into_dictionary_cluster():
+    mapping, _ = cluster_disciplines(["Физиология"], anchors={"Физика": "Физика"})
+    assert mapping["Физиология"] == "Физиология"
+
+
+def test_truncated_name_joins_full_one_with_shared_teacher():
+    short = "РАЗРАБОТКА НОРМАТИВНОЙ И ТЕХНИЧЕСКОЙ ДОКУМЕНТАЦИИ ПРИ ПРОИЗВОДСТВЕ"
+    full = ("Разработка нормативной и технической документации при производстве "
+            "хлебобулочных, кондитерских и макаронных изделий")
+    teachers = {short: {"Колотова Н.А."}, full: {"Колотова Н.А."}}
+    mapping, _ = cluster_disciplines([short, full], teachers_of=teachers)
+    assert mapping[short] == mapping[full] == full
+    mapping, _ = cluster_disciplines([short, full], teachers_of={short: {"Иванов И.И."}, full: {"Колотова Н.А."}})
+    assert mapping[short] != mapping[full]
+
+
+def test_two_dictionary_words_are_not_typos_of_each_other():
+    known = {"микроэкономика", "макроэкономика"}
+    mapping, _ = cluster_disciplines(["Микроэкономика", "Макроэкономика"], known_words=known)
+    assert len(set(mapping.values())) == 2
+
+
+def test_short_capital_tokens_must_match():
+    mapping, _ = cluster_disciplines(["Ландшафтное проектирование в ЛА", "Ландшафтное проектирование в ЛД"])
+    assert len(set(mapping.values())) == 2
+
+
+def test_sentence_case_lowercases_prepositions_and_keeps_abbreviations():
+    mapping, _ = cluster_disciplines(["БЕЗОПАСНОСТЬ ЖИЗНЕДЕЯТЕЛЬНОСТИ И ОХРАНА ТРУДА"])
+    assert mapping["БЕЗОПАСНОСТЬ ЖИЗНЕДЕЯТЕЛЬНОСТИ И ОХРАНА ТРУДА"] == "Безопасность жизнедеятельности и охрана труда"
+    mapping, _ = cluster_disciplines(["УПРАВЛЕНИЕ НЕСООТВЕТСТВИЯМИ В ПТС"])
+    assert mapping["УПРАВЛЕНИЕ НЕСООТВЕТСТВИЯМИ В ПТС"] == "Управление несоответствиями в ПТС"
+
+
+@pytest.mark.parametrize("raw, expected", [
+    ("ВТ -404", "ВТ-404"), ("Б-ВБ 301", "Б-ВБ-301"), ("Б-УК- 301", "Б-УК-301"),
+    ("М-ППР-ТМП- 201", "М-ППР-ТМП-201"), ("Б-Э-101", "Б-Э-101"), ("-101", "-101"), ("", ""),
+])
+def test_normalize_group(raw, expected):
+    assert normalize_group(raw) == expected
