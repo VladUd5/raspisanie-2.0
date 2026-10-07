@@ -232,3 +232,44 @@ def test_group_load_parallel_subgroups_are_one_pair():
 
 def test_group_options_put_broken_names_last():
     assert q.group_options(["Б-Э-101", "", "-101", "Б-А-301"]) == ["Б-А-301", "Б-Э-101", "-101", ""]
+
+
+def test_distribution_bins_and_stats():
+    bins, stats = q.distribution(pd.Series([0.75, 0.75, 1.5, 3.0, 4.5]), step=1.5)
+    assert bins["count"].tolist() == [2, 1, 1, 1]
+    assert bins["label"].tolist() == ["0–1.5", "1.5–3", "3–4.5", "4.5–6"]
+    assert stats["count"] == 5 and stats["median"] == 1.5 and stats["min"] == 0.75 and stats["max"] == 4.5
+    assert round(stats["mean"], 2) == 2.1
+
+
+def test_distribution_empty():
+    bins, stats = q.distribution(pd.Series([], dtype=float), step=1.0)
+    assert bins.empty and stats == {}
+
+
+def test_peak_hours_counts_groups_per_slot(frames):
+    lessons, *_ = frames
+    p = q.peak_hours(q.apply_filters(lessons, q.Filters()))
+    assert list(p.index) == ["понедельник", "вторник", "среда"] and list(p.columns) == ["08:30", "10:10"]
+    # числитель + знаменатель у одной группы — одна пара; поточная лекция — по паре у каждой группы
+    assert p.loc["понедельник"].tolist() == [2.0, 2.0]
+    assert p.loc["вторник"].tolist() == [1.0, 1.0]
+    assert p.loc["среда"].tolist() == [1.0, 1.0]
+
+
+def test_room_fund_occupancy_by_building(frames):
+    lessons, _, rooms, *_ = frames
+    occ = q.room_fund_occupancy(q.apply_filters(lessons, q.Filters()), rooms)
+    by = occ.set_index("building")
+    assert by.loc["УК1", "rooms"] == 2 and by.loc["УК1", "slots"] == 6
+    assert by.loc["УК1", "busy"] == 3.5 and round(by.loc["УК1", "occupancy"], 1) == 29.2
+    assert round(by.loc["УК2", "occupancy"], 1) == 16.7
+    assert round(by.loc["Прилегающие здания", "occupancy"], 1) == 16.7
+
+
+def test_free_rooms_grid(frames):
+    lessons, _, rooms, *_ = frames
+    free = q.free_rooms(q.apply_filters(lessons, q.Filters()), rooms, "УК1")
+    assert free.loc["понедельник"].tolist() == [1.0, 0.5]   # 422 занята; 422 — по числителю, 314 — вся пара
+    assert free.loc["вторник"].tolist() == [1.0, 2.0]
+    assert free.loc["среда"].tolist() == [2.0, 2.0]

@@ -12,6 +12,8 @@
 import sqlite3
 from dataclasses import dataclass
 
+import math
+
 import pandas as pd
 
 from etl.locations import ADJACENT
@@ -330,6 +332,84 @@ def group_load(lessons: pd.DataFrame) -> pd.DataFrame:
     out["disciplines"] = lessons[lessons["discipline"] != "—"].groupby(who)["discipline"].nunique()
     out = out.fillna({"disciplines": 0}).astype({"disciplines": int}).reset_index()
     return rank(out, "pairs", "group_name")[cols]
+
+
+# --- инфографика -------------------------------------------------------------------
+
+def distribution(values: pd.Series, step: float) -> tuple[pd.DataFrame, dict]:
+    """Гистограмма с шагом step (интервалы [a, a+step)) и сводка: число, среднее,
+    медиана, 10-й и 90-й перцентили, минимум, максимум."""
+    v = values.dropna().astype(float)
+    if v.empty:
+        return pd.DataFrame(columns=["bin_from", "bin_to", "label", "count"]), {}
+    n_bins = int(math.floor(v.max() / step)) + 1
+    idx = (v // step).astype(int).clip(upper=n_bins - 1)
+    counts = idx.value_counts().reindex(range(n_bins), fill_value=0)
+    fmt = lambda x: f"{x:g}"
+    bins = pd.DataFrame({"bin_from": [i * step for i in range(n_bins)],
+                         "bin_to": [(i + 1) * step for i in range(n_bins)],
+                         "count": counts.values})
+    bins["label"] = [f"{fmt(a)}–{fmt(b)}" for a, b in zip(bins["bin_from"], bins["bin_to"])]
+    stats = {"count": int(v.size), "mean": float(v.mean()), "median": float(v.median()),
+             "p10": float(v.quantile(0.1)), "p90": float(v.quantile(0.9)),
+             "min": float(v.min()), "max": float(v.max())}
+    return bins[["bin_from", "bin_to", "label", "count"]], stats
+
+
+def _week_slots(lessons: pd.DataFrame) -> list[tuple[int, str]]:
+    """Слоты недели — пары «день × время начала», которые встречаются в выборке."""
+    return sorted(set(zip(lessons["day_idx"], lessons["time_from"])))
+
+
+def _slot_pivot(values: pd.Series, slots: list[tuple[int, str]], fill: float) -> pd.DataFrame:
+    """Series с индексом (day_idx, time_from) → таблица дни × время по всем слотам недели."""
+    full = pd.Series(fill, index=pd.MultiIndex.from_tuples(slots, names=["day_idx", "time_from"]), dtype=float)
+    full.update(values)
+    p = full.unstack("time_from")
+    p.index = [DAYS[i] if i < len(DAYS) else "?" for i in p.index]
+    return p[sorted(p.columns)]
+
+
+def peak_hours(lessons: pd.DataFrame) -> pd.DataFrame:
+    """Сколько групп в среднем занимается в каждый слот недели (числитель и знаменатель —
+    по половине; параллельные подгруппы одной группы — одна пара)."""
+    if lessons.empty:
+        return pd.DataFrame()
+    ev = _occupancy(lessons, ["group_name", "institute", "study_form"])
+    per_slot = ev.groupby(["day_idx", "time_from"])["per_week"].sum()
+    return _slot_pivot(per_slot, _week_slots(lessons), 0.0)
+
+
+def room_fund_occupancy(lessons: pd.DataFrame, rooms: pd.DataFrame) -> pd.DataFrame:
+    """Загрузка аудиторного фонда по корпусам: занятые пары / (аудитории × слоты недели).
+
+    Фонд — аудитории, которые хоть раз встречаются в выборке; кабинетов без
+    занятий стенд не знает, поэтому реальная загрузка может быть ниже."""
+    cols = ["building", "occupancy", "busy", "rooms", "slots"]
+    df = _rooms_scope(lessons, rooms, "all")
+    if df.empty:
+        return pd.DataFrame(columns=cols)
+    ev = _occupancy(df, ["room_label"])
+    slots = len(_week_slots(lessons))
+    out = ev.groupby("room_building").agg(busy=("per_week", "sum"))
+    out["rooms"] = df.groupby("room_building")["room_label"].nunique()
+    out["slots"] = slots
+    out["occupancy"] = 100 * out["busy"] / (out["rooms"] * slots)
+    out = out.reset_index().rename(columns={"room_building": "building"})
+    return out.sort_values(["occupancy", "building"], ascending=[False, True], ignore_index=True)[cols]
+
+
+def free_rooms(lessons: pd.DataFrame, rooms: pd.DataFrame, building: str) -> pd.DataFrame:
+    """Сколько аудиторий корпуса свободно в каждый слот недели (занятость по числителю
+    или знаменателю — половина аудитории)."""
+    df = _rooms_scope(lessons, rooms, "all")
+    df = df[df["room_building"] == building]
+    if df.empty:
+        return pd.DataFrame()
+    ev = _occupancy(df, ["room_label"])
+    total = df["room_label"].nunique()
+    busy = ev.groupby(["day_idx", "time_from"])["per_week"].sum()
+    return total - _slot_pivot(busy, _week_slots(lessons), 0.0)
 
 
 # --- обзор и качество ---------------------------------------------------------------

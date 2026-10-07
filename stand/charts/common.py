@@ -42,6 +42,22 @@ def bar_h(df: pd.DataFrame, label: str, value: str, title: str, value_title: str
     return _finish(fig, title, max(240, 26 * len(d) + 90))
 
 
+def histogram(bins: pd.DataFrame, step: float, title: str, value_title: str, count_title: str,
+              mode: str = "light", median: float | None = None) -> go.Figure:
+    """Гистограмма по готовым интервалам (одна серия, слот 1) и пунктир медианы."""
+    centers = bins["bin_from"] + step / 2
+    fig = go.Figure(go.Bar(
+        x=centers, y=bins["count"], width=step * 0.94, marker_color=SERIES[mode][0], customdata=bins["label"],
+        hovertemplate=f"%{{customdata}} {value_title}<br>{count_title}: %{{y}}<extra></extra>"))
+    if median is not None:
+        fig.add_vline(x=median, line=dict(color=NEUTRAL, width=2, dash="dash"),
+                      annotation=dict(text=f"медиана {median:g}", font=dict(color=NEUTRAL)),
+                      annotation_position="top right")
+    fig.update_xaxes(title=value_title)
+    fig.update_yaxes(title=count_title, showgrid=True)
+    return _finish(fig, title, 320)
+
+
 def bar_by_type(df: pd.DataFrame, type_col: str, value: str, title: str, value_title: str,
                 mode: str = "light") -> go.Figure:
     """Столбики по типам занятий в цветах типов (те же цвета на всех страницах)."""

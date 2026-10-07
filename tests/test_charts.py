@@ -1,6 +1,6 @@
 import pandas as pd
 
-from charts.common import LESSON_TYPES, SERIES, bar_by_type, bar_h, heatmap, stacked_by_type, type_colors
+from charts.common import LESSON_TYPES, SERIES, bar_by_type, bar_h, heatmap, histogram, stacked_by_type, type_colors
 
 
 def test_type_colors_are_fixed_per_type():
@@ -36,3 +36,13 @@ def test_stacked_legend_does_not_cover_axis():
     fig = stacked_by_type(df, "discipline", "hours", "t", "ч")
     assert fig.layout.legend.yanchor == "bottom" and fig.layout.legend.y >= 1
     assert fig.layout.margin.t >= 80          # место и для заголовка, и для легенды
+
+
+def test_histogram_single_series_with_median_line():
+    bins = pd.DataFrame({"bin_from": [0.0, 1.5, 3.0], "bin_to": [1.5, 3.0, 4.5], "label": ["0–1.5", "1.5–3", "3–4.5"],
+                         "count": [2, 1, 1]})
+    fig = histogram(bins, 1.5, "Распределение", "часов в неделю", "преподавателей", median=1.5)
+    assert len(fig.data) == 1 and list(fig.data[0].y) == [2, 1, 1]
+    assert list(fig.data[0].x) == [0.75, 2.25, 3.75]                  # центры интервалов
+    assert any(s.x0 == 1.5 for s in fig.layout.shapes)               # линия медианы
+    assert fig.layout.showlegend in (None, False)

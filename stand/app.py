@@ -28,15 +28,20 @@ for name, err in _load_new_snapshots():
 # Страницы лежат в views/, а не в pages/: папку pages/ рядом с точкой входа
 # Streamlit подхватывает сам (старый режим многостраничности), и тогда прямая
 # ссылка на страницу открывает её без app.py — без фильтров в боковой панели.
-pages = st.navigation([
-    st.Page("views/overview.py", title="Обзор и пайплайн", icon="🔄", default=True),
-    st.Page("views/teachers.py", title="Преподаватели", icon="👩‍🏫"),
-    st.Page("views/rooms.py", title="Аудитории", icon="🚪"),
-    st.Page("views/disciplines.py", title="Дисциплины", icon="📚"),
-    st.Page("views/groups.py", title="Группы", icon="👥"),
-    st.Page("views/quality.py", title="Качество данных", icon="🧹"),
-    st.Page("views/spellings.py", title="Словарь написаний", icon="🔤"),
-    st.Page("views/export.py", title="Данные и экспорт", icon="⬇️"),
-])
+pages = st.navigation({
+    "Расписание": [
+        st.Page("views/overview.py", title="Обзор и пайплайн", icon="🔄", default=True),
+        st.Page("views/teachers.py", title="Преподаватели", icon="👩‍🏫"),
+        st.Page("views/rooms.py", title="Аудитории", icon="🚪"),
+        st.Page("views/disciplines.py", title="Дисциплины", icon="📚"),
+        st.Page("views/groups.py", title="Группы", icon="👥"),
+        st.Page("views/export.py", title="Данные и экспорт", icon="⬇️"),
+    ],
+    "Аналитика": [
+        st.Page("views/infographics.py", title="Инфографика", icon="📊"),
+        st.Page("views/quality.py", title="Качество данных", icon="🧹"),
+        st.Page("views/spellings.py", title="Словарь написаний", icon="🔤"),
+    ],
+})
 st.session_state["ctx"] = filters.sidebar()
 pages.run()

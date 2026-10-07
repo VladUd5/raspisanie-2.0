@@ -6,7 +6,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 APP = str(Path(__file__).parent.parent / "stand" / "app.py")
-PAGES = ["overview", "teachers", "rooms", "disciplines", "groups", "quality", "spellings", "export"]
+PAGES = ["overview", "teachers", "rooms", "disciplines", "groups", "infographics", "quality", "spellings", "export"]
 
 
 @pytest.fixture
@@ -175,3 +175,19 @@ def test_ranking_can_show_least_loaded_first(env, page, column):
     assert not at.exception, at.exception
     values = at.dataframe[0].value[column].tolist()
     assert values == sorted(values)                      # наименее загруженные — первыми
+
+
+@pytest.mark.parametrize("what", ["teacher", "group", "room"])
+def test_infographics_distribution_switch(env, what):
+    at = AppTest.from_file(APP, default_timeout=60)
+    at.run()
+    at.switch_page("views/infographics.py")
+    at.run()
+    at.segmented_control(key="dist_what").set_value(what).run()
+    assert not at.exception, at.exception
+    assert any("Медиана" in str(df.value) for df in at.dataframe)    # сводка распределения
+
+
+def test_navigation_has_analytics_section(env):
+    src = Path(APP).read_text(encoding="utf-8")
+    assert '"Аналитика": [' in src and src.index("views/infographics.py") < src.index("views/quality.py")
