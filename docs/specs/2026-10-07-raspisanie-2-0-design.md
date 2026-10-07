@@ -142,7 +142,7 @@ Building{name, institutes[]}
 | `charts/common.py` | построители фигур Plotly, проверенная палитра | DataFrame → Figure |
 | `labels.py` | человекочитаемые названия slug-ов, дней, недель, колонок | — |
 | `ui/*.py` | кэш чтения БД, сквозные фильтры, тема | — |
-| `app.py`, `pages/*.py` | UI: `st.navigation`, сайдбар-фильтры и 7 страниц | — |
+| `app.py`, `views/*.py` | UI: `st.navigation`, сайдбар-фильтры и 7 страниц | — |
 
 Модули ETL и аналитики не импортируют Streamlit — тестируются отдельно.
 
