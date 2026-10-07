@@ -1,13 +1,14 @@
 import pytest
 
 from analytics import queries as q
+from etl.dictionary import Dictionary
 from etl.load import connect, load_snapshot
 
 
 @pytest.fixture
 def frames(tmp_path, mini_snapshot_path):
     conn = connect(tmp_path / "t.db")
-    sid = load_snapshot(conn, mini_snapshot_path)
+    sid = load_snapshot(conn, mini_snapshot_path, dictionary=Dictionary.empty())
     return q.lessons_frame(conn, sid), q.teachers_frame(conn, sid), q.rooms_frame(conn, sid), conn, sid
 
 

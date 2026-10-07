@@ -49,10 +49,19 @@ def _frames(db: str, version: float, snapshot_id: int) -> Frames:
 
 
 @st.cache_data(show_spinner=False)
-def _quality(db: str, version: float, snapshot_id: int) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def _quality(db: str, version: float, snapshot_id: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     c = connect(db)
     try:
-        return q.cells_quality_frame(c, snapshot_id), q.service_cells(c, snapshot_id), q.merges_frame(c, snapshot_id)
+        return q.cells_quality_frame(c, snapshot_id), q.service_cells(c, snapshot_id)
+    finally:
+        c.close()
+
+
+@st.cache_data(show_spinner=False)
+def _spellings(db: str, version: float, snapshot_id: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    c = connect(db)
+    try:
+        return q.spellings_frame(c, snapshot_id), q.rule_audit_frame(c, snapshot_id)
     finally:
         c.close()
 
@@ -65,5 +74,9 @@ def frames(snapshot_id: int) -> Frames:
     return _frames(*db_key(), snapshot_id)
 
 
-def quality(snapshot_id: int) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def quality(snapshot_id: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     return _quality(*db_key(), snapshot_id)
+
+
+def spellings(snapshot_id: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    return _spellings(*db_key(), snapshot_id)

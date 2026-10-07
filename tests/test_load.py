@@ -1,8 +1,10 @@
 import shutil
+import sqlite3
 
 import pytest
 
-from etl.load import connect, ensure_loaded, load_snapshot, read_snapshot, suspicious_group
+from etl.dictionary import Dictionary, load_dictionary
+from etl.load import SCHEMA_VERSION, connect, ensure_loaded, load_snapshot, read_snapshot, suspicious_group
 
 
 def _count(conn, sql, *args):
@@ -11,15 +13,15 @@ def _count(conn, sql, *args):
 
 def test_snapshot_counters(tmp_path, mini_snapshot_path):
     conn = connect(tmp_path / "t.db")
-    sid = load_snapshot(conn, mini_snapshot_path)
+    sid = load_snapshot(conn, mini_snapshot_path, dictionary=Dictionary.empty())
     row = conn.execute("SELECT groups_cnt, cells_cnt, lessons_cnt, service_cnt FROM snapshots WHERE id=?", (sid,)).fetchone()
     assert row == (3, 10, 10, 1)
 
 
 def test_reload_is_idempotent(tmp_path, mini_snapshot_path):
     conn = connect(tmp_path / "t.db")
-    load_snapshot(conn, mini_snapshot_path)
-    load_snapshot(conn, mini_snapshot_path)
+    load_snapshot(conn, mini_snapshot_path, dictionary=Dictionary.empty())
+    load_snapshot(conn, mini_snapshot_path, dictionary=Dictionary.empty())
     assert _count(conn, "SELECT COUNT(*) FROM snapshots") == 1
     assert _count(conn, "SELECT COUNT(*) FROM lessons") == 10
     assert _count(conn, "SELECT COUNT(*) FROM lesson_teachers") == _count(
@@ -28,7 +30,7 @@ def test_reload_is_idempotent(tmp_path, mini_snapshot_path):
 
 def test_split_cell_week_factor(tmp_path, mini_snapshot_path):
     conn = connect(tmp_path / "t.db")
-    load_snapshot(conn, mini_snapshot_path)
+    load_snapshot(conn, mini_snapshot_path, dictionary=Dictionary.empty())
     factors = conn.execute(
         "SELECT l.week_factor FROM lessons l JOIN cells c ON c.id = l.cell_id WHERE c.lessons_in_cell = 2").fetchall()
     assert factors == [(0.5,), (0.5,)]
@@ -36,7 +38,7 @@ def test_split_cell_week_factor(tmp_path, mini_snapshot_path):
 
 def test_surname_resolved_and_typo_merged(tmp_path, mini_snapshot_path):
     conn = connect(tmp_path / "t.db")
-    load_snapshot(conn, mini_snapshot_path)
+    load_snapshot(conn, mini_snapshot_path, dictionary=Dictionary.empty())
     teachers = {r[0] for r in conn.execute("SELECT full_name FROM teachers")}
     assert "Шалаева Н.В." in teachers and "Шалаева" not in teachers
     assert {"Пяткина", "Балашова"} <= teachers
@@ -47,7 +49,7 @@ def test_surname_resolved_and_typo_merged(tmp_path, mini_snapshot_path):
 
 def test_same_room_number_in_two_buildings(tmp_path, mini_snapshot_path):
     conn = connect(tmp_path / "t.db")
-    load_snapshot(conn, mini_snapshot_path)
+    load_snapshot(conn, mini_snapshot_path, dictionary=Dictionary.empty())
     rooms = set(conn.execute("SELECT building, name FROM rooms WHERE name = '422'").fetchall())
     assert rooms == {("УК1", "422"), ("УК2", "422")}
     assert ("Прилегающие здания", "Физ. зал") in set(conn.execute("SELECT building, name FROM rooms").fetchall())
@@ -55,7 +57,7 @@ def test_same_room_number_in_two_buildings(tmp_path, mini_snapshot_path):
 
 def test_quality_flags(tmp_path, mini_snapshot_path):
     conn = connect(tmp_path / "t.db")
-    load_snapshot(conn, mini_snapshot_path)
+    load_snapshot(conn, mini_snapshot_path, dictionary=Dictionary.empty())
     q = lambda col: _count(conn, f"SELECT SUM({col}) FROM quality")
     assert q("split_cell") == 2
     assert q("suspicious_group") == 2
@@ -94,3 +96,58 @@ def test_bare_parser_list_is_accepted(tmp_path, mini_buildings):
     p = tmp_path / "raw.json"
     p.write_text(json.dumps(mini_buildings, ensure_ascii=False))
     assert len(read_snapshot(p)["buildings"]) == 2
+
+
+def _dict_dir(tmp_path, disciplines="", teachers=""):
+    from etl.dictionary import COLUMNS
+    d = tmp_path / "dict"
+    d.mkdir()
+    rows = {"disciplines": disciplines, "teachers": teachers}
+    for name, header in COLUMNS.items():
+        (d / f"{name}.csv").write_text(",".join(header) + "\n" + rows.get(name, ""), encoding="utf-8")
+    return load_dictionary(d)
+
+
+def test_dictionary_applied_and_spellings_recorded(tmp_path, mini_snapshot_path):
+    conn = connect(tmp_path / "t.db")
+    d = _dict_dir(tmp_path, disciplines="Иностанный язык,Иностранный язык,h,,опечатка\n",
+                  teachers="Пяткина,,Пяткина Н.А.,l,,одна в институте\n")
+    load_snapshot(conn, mini_snapshot_path, dictionary=d)
+    row = conn.execute("SELECT canonical, source, confidence, error_kinds, lessons FROM spellings "
+                       "WHERE kind='discipline' AND spelling='Иностанный язык'").fetchone()
+    assert row == ("Иностранный язык", "словарь", "h", "опечатка", 1)
+    assert "Пяткина Н.А." in {r[0] for r in conn.execute("SELECT full_name FROM teachers")}
+    assert conn.execute("SELECT source FROM spellings WHERE spelling='Пяткина'").fetchone() == ("словарь?",)
+    assert _count(conn, "SELECT SUM(discipline_fuzzy) FROM quality") == 0
+
+
+def test_spellings_cover_every_lesson_once_per_kind(tmp_path, mini_snapshot_path):
+    conn = connect(tmp_path / "t.db")
+    load_snapshot(conn, mini_snapshot_path, dictionary=Dictionary.empty())
+    with_discipline = _count(conn, "SELECT COUNT(*) FROM lessons WHERE discipline_id IS NOT NULL")
+    assert _count(conn, "SELECT SUM(lessons) FROM spellings WHERE kind='discipline'") == with_discipline
+    assert _count(conn, "SELECT SUM(lessons) FROM spellings WHERE kind='group'") == 10
+    rooms = conn.execute("SELECT spelling, canonical, source FROM spellings WHERE kind='room' "
+                         "AND canonical='Прилегающие здания|Физ. зал'").fetchone()
+    assert rooms == ("Прилегающие здания|физ. зал", "Прилегающие здания|Физ. зал", "разбор")
+    assert {r[0] for r in conn.execute("SELECT kind FROM rule_audit")} == {"discipline", "teacher"}
+
+
+def test_unverified_flag_without_dictionary(tmp_path, mini_snapshot_path):
+    conn = connect(tmp_path / "t.db")
+    load_snapshot(conn, mini_snapshot_path, dictionary=Dictionary.empty())
+    assert _count(conn, "SELECT SUM(unverified_name) FROM quality") == 10
+
+
+def test_old_database_is_recreated(tmp_path):
+    path = tmp_path / "t.db"
+    old = sqlite3.connect(path)
+    old.executescript("CREATE TABLE merges (snapshot_id INTEGER, kind TEXT, alias TEXT, canonical TEXT, score REAL);"
+                      "CREATE TABLE snapshots (id INTEGER PRIMARY KEY, file_name TEXT);"
+                      "INSERT INTO snapshots (file_name) VALUES ('old.json');")
+    old.close()
+    conn = connect(path)
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert "merges" not in tables and {"spellings", "rule_audit"} <= tables
+    assert _count(conn, "SELECT COUNT(*) FROM snapshots") == 0
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION

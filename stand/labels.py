@@ -41,6 +41,10 @@ COLUMNS = {
     "events": "Занятий в слоте", "count": "Занятий", "collected_at": "Собран", "source_url": "Источник",
     "file_name": "Файл", "groups_cnt": "Групп", "cells_cnt": "Ячеек", "lessons_cnt": "Занятий после разбора",
     "service_cnt": "Служебных строк",
+    "spelling": "Написание", "source": "Источник", "confidence": "Уверенность", "error_kinds": "Вид ошибки",
+    "error_kind": "Вид ошибки", "note": "Примечание", "uses": "Занятий", "spellings": "Написаний",
+    "tp": "Верных склеек", "fp": "Ложных склеек", "fn": "Пропущенных склеек",
+    "precision": "Точность, %", "recall": "Полнота, %", "kind_label": "Справочник",
 }
 
 

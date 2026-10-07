@@ -6,12 +6,12 @@ from labels import WEEK_TYPES, ru
 from ui import data, filters, theme
 
 st.title("Качество данных")
-st.caption("Что сделала стадия очистки: насколько полно разобраны ячейки PDF, какие строки отброшены, "
-           "какие написания склеены и где разбор стоит проверить вручную.")
+st.caption("Что сделала стадия очистки: насколько полно разобраны ячейки PDF, какие строки отброшены "
+           "и где разбор стоит проверить вручную.")
 ctx = filters.current()
 if filters.need_data(ctx):
     st.stop()
-cells, service, merges = data.quality(ctx.snapshot_id)
+cells, service = data.quality(ctx.snapshot_id)
 
 shares = q.quality_shares(cells)
 left, right = st.columns([3, 2])
@@ -38,12 +38,6 @@ conflicts = q.teacher_conflicts(lessons, teachers)
 conflicts["week_type"] = conflicts["week_type"].map(WEEK_TYPES)
 st.dataframe(ru(conflicts), hide_index=True, width="stretch")
 
-c1, c2 = st.columns(2)
-with c1:
-    st.subheader("Склейки написаний")
-    kind = st.segmented_control("Что склеено", ["discipline", "teacher"], default="discipline", required=True,
-                                format_func={"discipline": "Дисциплины", "teacher": "Преподаватели"}.get)
-    st.dataframe(ru(merges[merges["kind"] == kind].drop(columns=["kind"])), hide_index=True, width="stretch")
-with c2:
-    st.subheader("Отброшенные служебные строки")
-    st.dataframe(ru(service), hide_index=True, width="stretch")
+st.subheader("Отброшенные служебные строки")
+st.dataframe(ru(service), hide_index=True, width="stretch")
+st.info("Что с чем объединено и где ошибки в написаниях — на странице «Словарь написаний».")

@@ -40,7 +40,7 @@ if filters.need_data(ctx):
 
 lessons, teachers, rooms = filters.filtered(ctx)
 snap = data.snapshots().set_index("id").loc[ctx.snapshot_id]
-quality, service, _ = data.quality(ctx.snapshot_id)
+quality, service = data.quality(ctx.snapshot_id)
 
 st.subheader("Пайплайн выбранного снапшота")
 c1, c2, c3 = st.columns(3)

@@ -86,10 +86,18 @@ def service_cells(conn: sqlite3.Connection, snapshot_id: int) -> pd.DataFrame:
         conn, params=(snapshot_id,))
 
 
-def merges_frame(conn: sqlite3.Connection, snapshot_id: int) -> pd.DataFrame:
+def spellings_frame(conn: sqlite3.Connection, snapshot_id: int) -> pd.DataFrame:
     return pd.read_sql_query(
-        "SELECT kind, alias, canonical, score FROM merges WHERE snapshot_id = ? ORDER BY score",
-        conn, params=(snapshot_id,))
+        "SELECT kind, spelling, canonical, source, confidence, error_kinds, note, lessons AS uses, score"
+        " FROM spellings WHERE snapshot_id = ?", conn, params=(snapshot_id,))
+
+
+def rule_audit_frame(conn: sqlite3.Connection, snapshot_id: int) -> pd.DataFrame:
+    df = pd.read_sql_query("SELECT kind, tp, fp, fn FROM rule_audit WHERE snapshot_id = ?",
+                           conn, params=(snapshot_id,))
+    df["precision"] = (100 * df["tp"] / (df["tp"] + df["fp"])).fillna(100.0).round(1)
+    df["recall"] = (100 * df["tp"] / (df["tp"] + df["fn"])).fillna(100.0).round(1)
+    return df
 
 
 # --- фильтры и часы -------------------------------------------------------------
@@ -283,7 +291,8 @@ QUALITY_FIELDS = {"has_type": "тип занятия", "has_discipline": "дис
                   "has_teacher": "преподаватель", "has_room": "аудитория"}
 FLAG_FIELDS = {"discipline_fuzzy": "дисциплина склеена fuzzy", "teacher_surname_only": "преподаватель без инициалов",
                "split_cell": "ячейка разрезана", "suspicious_group": "подозрительная группа",
-               "truncated": "оборванная ячейка", "needs_review": "требует проверки"}
+               "truncated": "оборванная ячейка", "unverified_name": "написание не проверено",
+               "needs_review": "требует проверки"}
 
 
 def quality_shares(q: pd.DataFrame) -> pd.DataFrame:
