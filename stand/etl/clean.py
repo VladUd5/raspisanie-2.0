@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from etl.locations import ADJACENT, LOCATIONS
 
 UNKNOWN = "не определён"
+LESSON_TYPES = ("лекция", "практика", "лабораторная", "семинар", "консультация", "зачёт", "экзамен", UNKNOWN)
 
 _L = "А-ЯЁа-яё"            # кириллическая буква
 _UP, _LO = "А-ЯЁ", "а-яё"  # заглавная и строчная
