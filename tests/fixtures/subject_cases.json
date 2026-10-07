@@ -2445,6 +2445,167 @@
      }
     ]
    }
+  },
+  {
+   "id": "prof-inside-discipline",
+   "category": "«проф.» внутри названия",
+   "raw": "пр.з. Педагог. технологии в проф. образ. Таньчева И.В. 801",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Педагог. технологии в проф. образ.",
+      "teachers": [
+       "Таньчева И.В."
+      ],
+      "rooms": [
+       "801"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "prof-inside-discipline-surname",
+   "category": "«проф.» внутри названия, фамилия без инициалов",
+   "raw": "пр.з. Правовое регулирование проф. деятельности Рубанова 1008",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Правовое регулирование проф. деятельности",
+      "teachers": [
+       "Рубанова"
+      ],
+      "rooms": [
+       "1008"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "initials-with-comma",
+   "category": "инициалы через запятую",
+   "raw": "лек. БЕЗОПАСНОСТЬ ЖИЗНЕДЕЯТЕЛЬНОСТИ доцент Карпова О,В. 213",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "БЕЗОПАСНОСТЬ ЖИЗНЕДЕЯТЕЛЬНОСТИ",
+      "teachers": [
+       "Карпова О.В."
+      ],
+      "rooms": [
+       "213"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "caps-surname",
+   "category": "фамилия капсом",
+   "raw": "лек. ЭКОЛОГИЧЕСКАЯ ОЦЕНКА ЕСТЕСТВЕННЫХ И ИСКУССТВЕННЫХ ВОДОЁМОВ проф. ПОДДУБНАЯ И.В. ауд. 434",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ЭКОЛОГИЧЕСКАЯ ОЦЕНКА ЕСТЕСТВЕННЫХ И ИСКУССТВЕННЫХ ВОДОЁМОВ",
+      "teachers": [
+       "Поддубная И.В."
+      ],
+      "rooms": [
+       "434"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "surname-glued-to-discipline",
+   "category": "фамилия слиплась с названием",
+   "raw": "пр.з. русский язык в деловой и научной коммуникацииВыходцева И.С. 407",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "русский язык в деловой и научной коммуникации",
+      "teachers": [
+       "Выходцева И.С."
+      ],
+      "rooms": [
+       "407"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "dot-after-surname",
+   "category": "точка после фамилии",
+   "raw": "лаб.з. Технохимический контроль в мясной отрасли Асеева. Е.Ю. ауд. 105",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Технохимический контроль в мясной отрасли",
+      "teachers": [
+       "Асеева Е.Ю."
+      ],
+      "rooms": [
+       "105"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "povolzhye-not-surname",
+   "category": "«Поволжье» — не фамилия",
+   "raw": "лаб.з. Биогеохимические основы животноводства в Поволжье 343 проф.Забелина М.В.",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Биогеохимические основы животноводства в Поволжье",
+      "teachers": [
+       "Забелина М.В."
+      ],
+      "rooms": [
+       "343"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
   }
  ]
 }

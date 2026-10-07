@@ -12,6 +12,7 @@ from etl.locations import ADJACENT, LOCATIONS
 UNKNOWN = "не определён"
 
 _L = "А-ЯЁа-яё"            # кириллическая буква
+_UP, _LO = "А-ЯЁ", "а-яё"  # заглавная и строчная
 _ROOM = "\x01"             # метка: здесь была аудитория или корпус
 _TEACHER = "\x02"          # метка: здесь был преподаватель
 _PH = "\x03"               # обрамление плейсхолдера места из справочника
@@ -61,7 +62,6 @@ _HOURS = re.compile(
     r"|(?<![А-ЯЁа-яё])с\s+\d{1,2}[.:]\d{2}",            # ЗАЧЕТ с 13.40
     re.I,
 )
-_UP, _LO = "А-ЯЁ", "а-яё"
 # дальше идёт фамилия: «Иванов…» или капсом «ИВАНОВ И.»
 _NAME_AHEAD = rf"(?=\s*(?:[{_UP}][{_LO}]|[{_UP}]{{2,}}\s+[{_UP}]\s*\.))"
 # Флага re.I нет: регистронезависимы только сами слова (?i:…), а проверка
@@ -122,15 +122,16 @@ _ROOMS = re.compile(
 )
 _SURNAME = r"[А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?"
 _FULL_NAME = re.compile(
-    rf"(?<![{_L}])(?P<s>{_SURNAME})\s*"
-    rf"(?:(?P<i1>[А-ЯЁ])\s*\.+\s*(?P<i2>[А-ЯЁ])\s*\.*"      # И.О. / И. О. / И.О
-    rf"|(?P<j1>[А-ЯЁ])(?P<j2>[А-ЯЁ])\s*\."                    # ИО.
-    rf"|(?P<k1>[А-ЯЁ])\s(?P<k2>[А-ЯЁ])\.)"                    # И О.
+    rf"(?<![{_UP}])(?P<s>{_SURNAME})\.?\s*"                  # перед фамилией может стоять строчная: «…коммуникацииВыходцева»
+    rf"(?:(?P<i1>[{_UP}])\s*[.,]+\s*(?P<i2>[{_UP}])\s*\.*"   # И.О. / И. О. / И.О / О,В.
+    rf"|(?P<j1>[{_UP}])(?P<j2>[{_UP}])\s*\."                 # ИО.
+    rf"|(?P<k1>[{_UP}])\s(?P<k2>[{_UP}])\.)"                 # И О.
+    rf"|(?<![{_L}])(?P<cs>[{_UP}]{{3,}}(?:-[{_UP}]{{3,}})?)\s+(?P<c1>[{_UP}])\.\s*(?P<c2>[{_UP}])\."  # ПОДДУБНАЯ И.В.
 )
 _CANDIDATE = re.compile(rf"(?<![{_L}])[А-ЯЁ][а-яё]{{2,}}(?:-[А-ЯЁ][а-яё]+)?(?![{_L}])")
 _FIRST_WORD = re.compile(rf"[{_L}A-Za-z]+")
 # Слова с заглавной буквы, которые встречаются в конце названий дисциплин.
-_NOT_SURNAMES = {"России", "Российской", "Земли", "Европы", "Азии", "Сибири", "Поволжья", "Мира"}
+_NOT_SURNAMES = {"России", "Российской", "Земли", "Европы", "Азии", "Сибири", "Поволжья", "Поволжье", "Мира"}
 
 
 def clean(subject: str) -> ParsedCell:
@@ -259,8 +260,13 @@ def _parse_lesson(lesson_type: str, type_raw: str | None, text: str, places: lis
     teachers: list[tuple[int, str]] = []
 
     def full_name(m: re.Match) -> str:
-        i1, i2 = next((m.group(a), m.group(b)) for a, b in (("i1", "i2"), ("j1", "j2"), ("k1", "k2")) if m.group(a))
-        teachers.append((m.start(), f"{m.group('s')} {i1}.{i2}."))
+        if m.group("cs"):
+            surname = "-".join(p.capitalize() for p in m.group("cs").split("-"))
+            i1, i2 = m.group("c1"), m.group("c2")
+        else:
+            surname = m.group("s")
+            i1, i2 = next((m.group(a), m.group(b)) for a, b in (("i1", "i2"), ("j1", "j2"), ("k1", "k2")) if m.group(a))
+        teachers.append((m.start(), f"{surname} {i1}.{i2}."))
         return _TEACHER + " " * (m.end() - m.start() - 1)   # длина сохраняется: позиции нужны ниже
 
     text = _FULL_NAME.sub(full_name, text)
