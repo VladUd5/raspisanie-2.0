@@ -196,3 +196,12 @@ def test_spelling_cards_rooms_show_without_building():
 
 def test_spelling_cards_empty_frame():
     assert q.spelling_cards(SP.iloc[0:0], "group").empty
+
+
+def test_single_corrected_spelling_is_a_card_by_default():
+    # единственное написание, отличающееся от канона, — настоящее исправление, его нельзя прятать
+    sp = pd.concat([SP, pd.DataFrame([("group", "ВТ -404", "ВТ-404", "правило", "", "пробел", "", 4, None),
+                                      ("group", "Б-Э-101", "Б-Э-101", "как есть", "", "", "", 9, None)],
+                                     columns=SP.columns)])
+    cards = q.spelling_cards(sp, "group")
+    assert list(cards["spelling"]) == ["ВТ -404"]

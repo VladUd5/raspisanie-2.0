@@ -39,7 +39,7 @@ c1, c2, c3 = st.columns([2, 2, 3])
 kinds = c1.multiselect("Вид ошибки", list(summary["error_kind"]), placeholder="все")
 sources = c2.multiselect("Источник канона", SOURCES, placeholder="все")
 query = c3.text_input("Поиск по слову")
-singles = st.checkbox("Показывать каноны с одним написанием", value=False)
+singles = st.checkbox("Показывать и слова без разночтений (одно написание, совпадающее с каноном)", value=False)
 cards = q.spelling_cards(sp, kind, tuple(kinds), tuple(sources), query, singles)
 
 st.markdown(legend_html(mode), unsafe_allow_html=True)

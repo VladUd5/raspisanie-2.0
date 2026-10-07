@@ -11,7 +11,8 @@ from analytics import queries as q
 from etl.load import connect, load_snapshot
 
 ROOT = Path(__file__).parent.parent
-DEMO = sorted((ROOT / "data" / "snapshots").glob("*.json"))
+# Словарь написаний проверен на этом снапшоте; новые сборы рядом с ним тест не трогают.
+DEMO = [p for p in [ROOT / "data" / "snapshots" / "2026-10-07_144819.json"] if p.exists()]
 APP = str(ROOT / "stand" / "app.py")
 PAGES = ["overview", "teachers", "rooms", "disciplines", "groups", "quality", "spellings", "export"]
 

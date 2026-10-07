@@ -126,3 +126,26 @@ def test_export_orders_days_by_week(env):
     table = at.dataframe[0].value
     days = table[table["Группа"] == "Б-Э-101"]["День"].tolist()
     assert days.index("понедельник") < days.index("вторник")
+
+
+def test_broken_dictionary_during_collect_shows_error(env, monkeypatch, mini_snapshot_path):
+    """Битый словарь после сбора — сообщение, а не трейсбек; снапшот остаётся на диске."""
+    import etl.collect
+    import etl.load
+    from etl.dictionary import DictionaryError
+
+    def fake_collect(parser_url, schedule_url, snapshots_dir, timeout_s=900):
+        return _later_snapshot(mini_snapshot_path, Path(snapshots_dir) / "2026-10-08_090000.json")
+
+    def broken_dictionary(*args, **kwargs):
+        raise DictionaryError("groups.csv, строка 3: лишние поля")
+
+    monkeypatch.setattr(etl.collect, "collect", fake_collect)
+    at = AppTest.from_file(APP, default_timeout=60)
+    at.run()
+    monkeypatch.setattr(etl.load, "load_dictionary", broken_dictionary)
+    at.button[0].click()
+    at.run()
+    assert not at.exception, at.exception
+    assert any("groups.csv" in e.value for e in at.error)
+    assert (env / "snapshots" / "2026-10-08_090000.json").exists()

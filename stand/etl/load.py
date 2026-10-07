@@ -9,7 +9,7 @@ from pathlib import Path
 from etl.clean import UNKNOWN, clean
 from etl.flatten import flatten
 from etl.canon import UNVERIFIED, Canonizer, Resolved
-from etl.dictionary import Dictionary, load_dictionary
+from etl.dictionary import DICTIONARY_DIR, Dictionary, fingerprint, load_dictionary
 from etl.normalize import is_surname_only
 from etl.variants import NOT_DISCIPLINE, classify
 
@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS rule_audit (
     snapshot_id INTEGER REFERENCES snapshots(id) ON DELETE CASCADE,
     kind TEXT, tp INTEGER, fp INTEGER, fn INTEGER);
 CREATE INDEX IF NOT EXISTS ix_spellings_snapshot ON spellings(snapshot_id);
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE INDEX IF NOT EXISTS ix_lessons_snapshot ON lessons(snapshot_id);
 CREATE INDEX IF NOT EXISTS ix_cells_snapshot ON cells(snapshot_id);
 CREATE INDEX IF NOT EXISTS ix_lesson_teachers_lesson ON lesson_teachers(lesson_id);
@@ -226,19 +227,32 @@ def load_snapshot(conn: sqlite3.Connection, path: Path, dictionary: Dictionary |
     return snap_id
 
 
-def ensure_loaded(conn: sqlite3.Connection, snapshots_dir: Path) -> tuple[list[int], list[tuple[str, str]]]:
+def ensure_loaded(conn: sqlite3.Connection, snapshots_dir: Path,
+                  dictionary_dir: Path = DICTIONARY_DIR) -> tuple[list[int], list[tuple[str, str]]]:
     """Загружает снапшоты из папки, которых ещё нет в БД.
 
+    Если словарь написаний поменялся с прошлой загрузки, все снапшоты
+    перечитываются: канон написаний зависит от словаря.
     Возвращает id загруженных и список (файл, ошибка) для файлов, которые
-    прочитать не удалось: битый снапшот не должен ронять стенд.
+    прочитать не удалось: битый снапшот или словарь не должен ронять стенд.
     """
+    try:
+        dictionary = load_dictionary(dictionary_dir)
+    except ValueError as e:     # DictionaryError: прежние данные остаются, стенд показывает предупреждение
+        return [], [(p.name, str(e)) for p in sorted(Path(snapshots_dir).glob("*.json"))]
+    current = fingerprint(dictionary_dir)
+    row = conn.execute("SELECT value FROM meta WHERE key = 'dictionary'").fetchone()
+    if row is None or row[0] != current:
+        with conn:
+            conn.execute("DELETE FROM snapshots")
+            conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('dictionary', ?)", (current,))
     known = {row[0] for row in conn.execute("SELECT file_name FROM snapshots")}
     loaded, errors = [], []
     for p in sorted(Path(snapshots_dir).glob("*.json")):
         if p.name in known:
             continue
         try:
-            loaded.append(load_snapshot(conn, p))
+            loaded.append(load_snapshot(conn, p, dictionary=dictionary))
         except (ValueError, OSError, AttributeError, TypeError) as e:
             errors.append((p.name, str(e)))
     return loaded, errors

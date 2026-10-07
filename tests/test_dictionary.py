@@ -71,3 +71,17 @@ def test_real_dictionary_is_consistent():
     for spelling, by_discipline in d.teachers.items():
         for discipline in by_discipline:
             assert discipline == "" or discipline in canons, (spelling, discipline)
+
+
+def test_unquoted_comma_gives_file_and_line(tmp_path):
+    # примечание с запятой без кавычек → лишнее поле
+    base = _dir(tmp_path, groups="\nВТ -404,ВТ-404,h,,пробел, лишний\n")
+    with pytest.raises(DictionaryError, match=r"groups\.csv, строка 3: лишние поля"):
+        load_dictionary(base)
+
+
+def test_cp1251_file_gives_file_name(tmp_path):
+    base = _dir(tmp_path)
+    (base / "groups.csv").write_bytes(",".join(COLUMNS["groups"]).encode("cp1251") + b"\n")
+    with pytest.raises(DictionaryError, match=r"groups\.csv.*UTF-8"):
+        load_dictionary(base)

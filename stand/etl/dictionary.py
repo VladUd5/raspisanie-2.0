@@ -4,6 +4,7 @@
 ячейке). Метод проверки и правила дополнения — в dictionary/README.md.
 """
 import csv
+import hashlib
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -66,18 +67,25 @@ class Dictionary:
 
 
 def _rows(path: Path, name: str):
-    with open(path, encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
-        if reader.fieldnames != COLUMNS[name]:
-            raise DictionaryError(f"{path.name}: ожидались столбцы {', '.join(COLUMNS[name])}, "
-                                  f"а в файле: {reader.fieldnames}")
-        for line, row in enumerate(reader, start=2):
-            if not any((v or "").strip() for v in row.values()):
-                continue
-            row = {k: (v or "").strip() for k, v in row.items()}
-            if row["уверенность"] not in ("h", "l"):
-                raise DictionaryError(f"{path.name}, строка {line}: уверенность должна быть h или l")
-            yield line, row
+    try:
+        with open(path, encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames != COLUMNS[name]:
+                raise DictionaryError(f"{path.name}: ожидались столбцы {', '.join(COLUMNS[name])}, "
+                                      f"а в файле: {reader.fieldnames}")
+            for row in reader:
+                line = reader.line_num
+                if None in row:
+                    raise DictionaryError(f"{path.name}, строка {line}: лишние поля — "
+                                          f"текст с запятой возьмите в кавычки")
+                if not any((v or "").strip() for v in row.values()):
+                    continue
+                row = {k: (v or "").strip() for k, v in row.items()}
+                if row["уверенность"] not in ("h", "l"):
+                    raise DictionaryError(f"{path.name}, строка {line}: уверенность должна быть h или l")
+                yield line, row
+    except UnicodeDecodeError as e:
+        raise DictionaryError(f"{path.name}: файл не в кодировке UTF-8 — сохраните его как «CSV UTF-8»") from e
 
 
 def _entry(row: dict, canonical: str) -> Entry:
@@ -88,6 +96,15 @@ def _put(target: dict, key, entry: Entry, path: Path, line: int) -> None:
     if key in target:
         raise DictionaryError(f"{path.name}, строка {line}: дубль ключа {key}")
     target[key] = entry
+
+
+def fingerprint(path: Path = DICTIONARY_DIR) -> str:
+    """Отпечаток содержимого словаря: по нему стенд узнаёт, что словарь поправили."""
+    h = hashlib.sha256()
+    for name in COLUMNS:
+        file = Path(path) / f"{name}.csv"
+        h.update(file.read_bytes() if file.exists() else b"")
+    return h.hexdigest()
 
 
 def load_dictionary(path: Path = DICTIONARY_DIR) -> Dictionary:

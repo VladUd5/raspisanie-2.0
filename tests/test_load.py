@@ -151,3 +151,40 @@ def test_old_database_is_recreated(tmp_path):
     assert "merges" not in tables and {"spellings", "rule_audit"} <= tables
     assert _count(conn, "SELECT COUNT(*) FROM snapshots") == 0
     assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+
+
+def test_changed_dictionary_reloads_snapshots(tmp_path, mini_snapshot_path):
+    from etl.dictionary import COLUMNS
+    snaps = tmp_path / "snapshots"
+    snaps.mkdir()
+    shutil.copy(mini_snapshot_path, snaps / "a.json")
+    d = tmp_path / "dict"
+    d.mkdir()
+    for name, header in COLUMNS.items():
+        (d / f"{name}.csv").write_text(",".join(header) + "\n", encoding="utf-8")
+    conn = connect(tmp_path / "t.db")
+    assert len(ensure_loaded(conn, snaps, dictionary_dir=d)[0]) == 1
+    assert ensure_loaded(conn, snaps, dictionary_dir=d) == ([], [])          # словарь не менялся
+    with open(d / "teachers.csv", "a", encoding="utf-8") as f:
+        f.write("Пяткина,,Пяткина Н.А.,h,,\n")
+    loaded, errors = ensure_loaded(conn, snaps, dictionary_dir=d)
+    assert len(loaded) == 1 and errors == []
+    assert _count(conn, "SELECT COUNT(*) FROM snapshots") == 1
+    assert "Пяткина Н.А." in {r[0] for r in conn.execute("SELECT full_name FROM teachers")}
+
+
+def test_broken_dictionary_keeps_loaded_data(tmp_path, mini_snapshot_path):
+    from etl.dictionary import COLUMNS
+    snaps = tmp_path / "snapshots"
+    snaps.mkdir()
+    shutil.copy(mini_snapshot_path, snaps / "a.json")
+    d = tmp_path / "dict"
+    d.mkdir()
+    for name, header in COLUMNS.items():
+        (d / f"{name}.csv").write_text(",".join(header) + "\n", encoding="utf-8")
+    conn = connect(tmp_path / "t.db")
+    ensure_loaded(conn, snaps, dictionary_dir=d)
+    (d / "groups.csv").write_text("написание;канон\n", encoding="utf-8")
+    loaded, errors = ensure_loaded(conn, snaps, dictionary_dir=d)
+    assert loaded == [] and "groups.csv" in errors[0][1]
+    assert _count(conn, "SELECT COUNT(*) FROM snapshots") == 1

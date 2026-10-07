@@ -122,8 +122,9 @@ def spelling_cards(sp: pd.DataFrame, kind: str, error_kinds: tuple[str, ...] = (
     def keep(mask: pd.Series) -> pd.DataFrame:
         return d[d["canonical"].isin(d.loc[mask, "canonical"])]
 
-    if not singles:
-        d = d[d.groupby("canonical")["spelling"].transform("count") > 1]
+    if not singles:   # прятать только карточки, где исправлять нечего: одно написание, равное канону
+        corrected = (d["shown"] != d["target"]).groupby(d["canonical"]).transform("any")
+        d = d[(d.groupby("canonical")["spelling"].transform("count") > 1) | corrected]
     if error_kinds:
         d = keep(d["error_kinds"].str.split(", ").apply(lambda ks: bool(set(ks) & set(error_kinds))))
     if sources:

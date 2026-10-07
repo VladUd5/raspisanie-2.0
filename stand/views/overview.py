@@ -4,6 +4,7 @@ from analytics import queries as q
 from charts.common import bar_h
 from config import collect_timeout_s, parser_url, schedule_url, snapshots_dir
 from etl.collect import CollectError, collect
+from etl.dictionary import DictionaryError
 from etl.load import load_snapshot
 from labels import ru
 from ui import data, filters, theme
@@ -33,6 +34,9 @@ with st.container(border=True):
             st.rerun()
         except CollectError as e:
             st.error(f"Сбор не удался: {e} Ранее собранные снапшоты по-прежнему доступны.")
+        except DictionaryError as e:
+            st.error(f"Данные собраны, но словарь написаний не читается: {e}. Снапшот сохранён в "
+                     "data/snapshots — после исправления словаря он загрузится при следующем запуске стенда.")
 
 ctx = filters.current()
 if filters.need_data(ctx):
