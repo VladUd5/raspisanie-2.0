@@ -41,6 +41,12 @@ def legend_html(mode: str = "light") -> str:
     return f"Подсветка разницы: {spans} · ␣ — пробел"
 
 
+def card_title(kind: str, canonical: str) -> str:
+    if not canonical:
+        return "(пустое имя)"
+    return canonical.replace("|", " · ") if kind == "room" else canonical
+
+
 def card_html(canonical: str, rows: pd.DataFrame, mode: str = "light") -> str:
     total = int(rows["uses"].sum())
     head = (f'<div style="font-weight:600;margin-bottom:4px">{html.escape(canonical)}'

@@ -26,28 +26,36 @@ def _nospace(s: str) -> str:
     return re.sub(r"\s+", "", s)
 
 
+def _noseparator(s: str) -> str:
+    """Без пробелов и дефисов: «Б-ЗТ 301» / «Б-ЗТ-301» — разница в разделителе."""
+    return re.sub(r"[\s\-]+", "", s)
+
+
 def _subsequence(short: str, long_: str) -> bool:
     it = iter(long_)
     return all(ch in it for ch in short)
 
 
 def _is_abbrev(s: str, c: str) -> bool:
-    """Каждое слово написания — начало очередного слова канона («жизнедеят.» / «жизнедеятельности»)."""
-    words, i = _TOKEN.findall(c), 0
+    """Каждое слово написания — начало очередного слова канона («жизнедеят.» / «жизнедеятельности»),
+    и хотя бы одно слово действительно короче своего («нормативной и технической» — не сокращение)."""
+    words, i, shortened = _TOKEN.findall(c), 0, False
     for t in _TOKEN.findall(s):
         while i < len(words) and not words[i].startswith(t):
             i += 1
         if i == len(words):
             return False
+        shortened |= len(t) < len(words[i])
         i += 1
-    return True
+    return shortened
 
 
 def _text_kind(s: str, c: str) -> str:
     sk, ck = s.strip(" .,"), c.strip(" .,")
     if ("." in s or "-" in s) and _is_abbrev(s, c):
         return "сокращение"
-    if sk and sk in ck:
+    # обрезано: начало или конец канона; начало могло оборваться на 1–2 буквы («ек.» / «лекция»)
+    if sk and (ck.startswith(sk) or ck.endswith(sk) or 0 < ck.find(sk) <= 2):
         return "обрезано"
     if _is_abbrev(s, c):
         return "сокращение"
@@ -103,10 +111,11 @@ def classify(kind: str, spelling: str, canonical: str) -> list[str]:
         s, c = s2, c2
         if s == c:
             return kinds
-    if _nospace(s) == _nospace(c):
+    if _nospace(s) == _nospace(c) or (kind in ("group", "room") and _noseparator(s) == _noseparator(c)):
         return kinds + ["пробел"]
     if kind == "teacher":
-        return kinds + _teacher_kind(spelling, canonical)
+        # латиница и ё уже учтены выше — сравниваем фамилии без них, но с исходным регистром
+        return kinds + _teacher_kind(_yo(spelling.translate(_LATIN)), _yo(canonical.translate(_LATIN)))
     if kind == "discipline":
         extra = [t for t in _NOTE.findall(s) if t not in c]
         if extra:

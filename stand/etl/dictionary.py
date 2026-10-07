@@ -60,6 +60,12 @@ class Dictionary:
             return None
         return by_discipline.get(discipline or "") or by_discipline.get("")
 
+    def known_caps(self) -> set[str]:
+        """Аббревиатуры из канонов дисциплин («ПТС», «АПК»): на пути автоправил капсом
+        остаются только они, а не любое короткое слово («ЕГО», «ЧАС»)."""
+        return {core for e in self.disciplines.values() for w in e.canonical.split()
+                if len(core := w.strip(".,;:()«»")) >= 2 and core.isupper()}
+
     def known_words(self) -> set[str]:
         """Слова канонов дисциплин: два таких слова не считаются опечаткой друг друга."""
         return {w for e in self.disciplines.values() if e.canonical != NOT_DISCIPLINE
@@ -123,6 +129,9 @@ def load_dictionary(path: Path = DICTIONARY_DIR) -> Dictionary:
             if not canonical:
                 raise DictionaryError(f"{file.name}, строка {line}: пустой канон")
             if name == "teachers":
+                if row["дисциплина"] == NOT_DISCIPLINE:
+                    raise DictionaryError(f"{file.name}, строка {line}: «{NOT_DISCIPLINE}» — не дисциплина, "
+                                          "строка с ней никогда не сработает")
                 if not _TEACHER_CANON.match(canonical):
                     raise DictionaryError(
                         f"{file.name}, строка {line}: канон «{canonical}» — не «Фамилия И.О.» и не фамилия")

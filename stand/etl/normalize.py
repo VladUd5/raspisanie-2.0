@@ -43,17 +43,22 @@ LOWER_WORDS = frozenset({"и", "в", "во", "на", "с", "со", "по", "дл
                          "над", "под", "об", "о", "у", "за", "или"})
 
 
-def _sentence_case(name: str, keep_caps: frozenset[str] = frozenset()) -> str:
+def _sentence_case(name: str, keep_caps: frozenset[str] = frozenset(),
+                   known_caps: set[str] | None = None) -> str:
     """«ИННОВАЦИОННЫЙ МЕНЕДЖМЕНТ АПК» → «Инновационный менеджмент АПК».
 
     Капсом остаются слова, которые капсом записаны в других (не капсовых)
-    вариантах кластера, и короткие аббревиатуры (до 3 букв), кроме предлогов и
-    союзов: «… И ОХРАНА ТРУДА» → «… и охрана труда».
+    вариантах кластера, и аббревиатуры. Аббревиатуры берутся из канонов
+    словаря (known_caps); без словаря — любое короткое слово (до 3 букв), кроме
+    предлогов и союзов: «… И ОХРАНА ТРУДА» → «… и охрана труда».
     """
     out = []
     for i, w in enumerate(name.split()):
         core = w.strip(".,;:()«»")
-        short_abbr = sum(c.isalpha() for c in w) <= 3 and w.isupper() and core.lower() not in LOWER_WORDS
+        if known_caps is not None:
+            short_abbr = core in known_caps
+        else:
+            short_abbr = sum(c.isalpha() for c in w) <= 3 and w.isupper() and core.lower() not in LOWER_WORDS
         out.append(w if i > 0 and (core in keep_caps or short_abbr) else w.lower())
     s = " ".join(out)
     return s[:1].upper() + s[1:]
@@ -132,7 +137,8 @@ PREFIX_MIN_WORDS, PREFIX_MIN_LEN = 3, 20
 
 def cluster_disciplines(names: list[str], anchors: dict[str, str] | None = None,
                         teachers_of: dict[str, set[str]] | None = None,
-                        known_words: set[str] | None = None) -> tuple[dict[str, str], list[Merge]]:
+                        known_words: set[str] | None = None,
+                        known_caps: set[str] | None = None) -> tuple[dict[str, str], list[Merge]]:
     """Склеивает непроверенные написания дисциплин.
 
     Проверенные написания (anchors: написание → канон словаря) — готовые
@@ -192,7 +198,8 @@ def cluster_disciplines(names: list[str], anchors: dict[str, str] | None = None,
                               for w in v.split() if sum(c.isalpha() for c in w) >= 2 and w.isupper())
         # при равной частоте — более длинный вариант: опечатки чаще теряют буквы
         best = min(vs, key=lambda v: (_abbreviations(v), _is_caps(v), -vs[v], -len(v), v))
-        canonical_of_rep[rep] = _sentence_case(best, keep_caps) if _is_caps(best) else best[:1].upper() + best[1:]
+        canonical_of_rep[rep] = (_sentence_case(best, keep_caps, known_caps) if _is_caps(best)
+                                 else best[:1].upper() + best[1:])
 
     mapping = {name: canonical_of_rep[cluster_of[disc_key(name)]] for name in counts}
     merges = [

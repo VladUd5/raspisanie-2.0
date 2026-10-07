@@ -6,7 +6,7 @@ from analytics import queries as q
 from charts.common import bar_h
 from labels import ru
 from ui import data, filters, theme
-from ui.cards import card_html, legend_html
+from ui.cards import card_html, card_title, legend_html
 
 KINDS = {"teacher": "Преподаватели", "discipline": "Дисциплины", "room": "Аудитории",
          "group": "Группы", "lesson_type": "Типы занятий"}
@@ -51,9 +51,8 @@ else:
     page = st.number_input(f"Страница (всего {pages})", min_value=1, max_value=pages, value=1) if pages > 1 else 1
     for canon in canons[(page - 1) * PER_PAGE: page * PER_PAGE]:
         rows = cards[cards["canonical"] == canon]
-        title = canon.replace("|", " · ") if kind == "room" else canon
         with st.container(border=True):
-            st.markdown(card_html(title, rows, mode), unsafe_allow_html=True)
+            st.markdown(card_html(card_title(kind, canon), rows, mode), unsafe_allow_html=True)
 
 st.subheader("Насколько можно верить автоправилам")
 st.caption("Автоправила прогнаны на проверенных написаниях так, будто словаря нет, и сравнены с ручными "

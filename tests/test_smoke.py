@@ -149,3 +149,15 @@ def test_broken_dictionary_during_collect_shows_error(env, monkeypatch, mini_sna
     assert not at.exception, at.exception
     assert any("groups.csv" in e.value for e in at.error)
     assert (env / "snapshots" / "2026-10-08_090000.json").exists()
+
+
+def test_spellings_kind_switch_changes_cards(env):
+    at = AppTest.from_file(APP, default_timeout=60)
+    at.run()
+    at.switch_page("views/spellings.py")
+    at.run()
+    text = lambda: " ".join(m.value for m in at.markdown)
+    assert "Шалаева Н.В." in text()                      # по умолчанию — преподаватели
+    at.segmented_control[0].set_value("discipline").run()
+    assert not at.exception, at.exception
+    assert "Иностранный язык" in text() and "Шалаева Н.В." not in text()

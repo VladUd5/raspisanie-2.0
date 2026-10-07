@@ -46,8 +46,9 @@ def test_rooms_groups_types():
     b, r, res = c.room("УК1", "314", "314")
     assert (b, r, res.source, res.canonical) == ("УК1", "314", SOURCE_PARSE, "УК1|314")
     assert c.group("ВТ -404").source == "словарь"
-    assert (c.group("Б-ВБ 301").canonical, c.group("Б-ВБ 301").source) == ("Б-ВБ-301", SOURCE_RULE)
-    assert c.group("Б-Э-101").source == SOURCE_ASIS
+    # имена групп правит разбор (normalize_group), автоправил у групп нет
+    assert (c.group("Б-ВБ 301").canonical, c.group("Б-ВБ 301").source) == ("Б-ВБ-301", SOURCE_PARSE)
+    assert c.group("Б-Э-101").source == SOURCE_PARSE
     assert c.lesson_type("лекю", "не определён").canonical == "лекция"
     assert c.lesson_type("лек.", "лекция").source == SOURCE_PARSE
 

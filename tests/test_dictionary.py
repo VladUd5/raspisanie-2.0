@@ -67,7 +67,7 @@ def test_empty_dictionary():
 def test_real_dictionary_is_consistent():
     d = load_dictionary()
     assert len(d.disciplines) > 2000 and len(d.teachers) > 600
-    canons = {e.canonical for e in d.disciplines.values()}
+    canons = {e.canonical for e in d.disciplines.values()} - {"—"}
     for spelling, by_discipline in d.teachers.items():
         for discipline in by_discipline:
             assert discipline == "" or discipline in canons, (spelling, discipline)
@@ -85,3 +85,14 @@ def test_cp1251_file_gives_file_name(tmp_path):
     (base / "groups.csv").write_bytes(",".join(COLUMNS["groups"]).encode("cp1251") + b"\n")
     with pytest.raises(DictionaryError, match=r"groups\.csv.*UTF-8"):
         load_dictionary(base)
+
+
+def test_known_caps_are_abbreviations_from_canons(tmp_path):
+    d = load_dictionary(_dir(tmp_path, disciplines="УПРАВЛЕНИЕ КАЧЕСТВОМ В ПТС,Управление качеством в ПТС,h,,\n"
+                                                  "Охрана ВОД,Охрана вод,h,,\n"))
+    assert d.known_caps() == {"ПТС"}
+
+
+def test_teacher_row_for_not_a_discipline_is_rejected(tmp_path):
+    with pytest.raises(DictionaryError, match=r"teachers\.csv, строка 2: .*дисциплин"):
+        load_dictionary(_dir(tmp_path, teachers="Иванов,—,Иванов И.И.,h,,\n"))

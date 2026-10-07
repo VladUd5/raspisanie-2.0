@@ -45,7 +45,8 @@ class Canonizer:
         verified = {n: e.canonical for n, e in dictionary.disciplines.items()}
         self._disc_rules, self.disc_merges = cluster_disciplines(
             [n for n in self._disc_names if n not in dictionary.disciplines],
-            anchors=verified, teachers_of=self._teachers_of, known_words=dictionary.known_words())
+            anchors=verified, teachers_of=self._teachers_of, known_words=dictionary.known_words(),
+            known_caps=dictionary.known_caps() or None)
 
         self._disc_of: dict[str, set[str]] = {}
         self._teacher_names: list[str] = []
@@ -80,8 +81,8 @@ class Canonizer:
         return building, room, Resolved(f"{building}|{room}", SOURCE_PARSE)
 
     def group(self, name: str) -> Resolved:
-        e = self.d.groups.get(name)
-        return _from(e) if e else _by_rule(name, normalize_group(name))
+        e = self.d.groups.get(name)       # имена групп правит разбор, автоправил у групп нет
+        return _from(e) if e else Resolved(normalize_group(name), SOURCE_PARSE)
 
     def lesson_type(self, raw: str | None, parsed: str) -> Resolved:
         e = self.d.lesson_types.get(raw) if raw else None

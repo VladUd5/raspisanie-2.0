@@ -15,3 +15,10 @@ def test_card_html_has_every_spelling_and_note_escaped():
     html = card_html("Торопова В.В.", rows)
     assert "Торопова В.В." in html and "нет инициалов" in html and "&quot;в&quot;" in html
     assert "?" in html
+
+
+def test_card_title():
+    from ui.cards import card_title
+    assert card_title("room", "УК3|С-305а") == "УК3 · С-305а"
+    assert card_title("group", "") == "(пустое имя)"
+    assert card_title("teacher", "Торопова В.В.") == "Торопова В.В."
