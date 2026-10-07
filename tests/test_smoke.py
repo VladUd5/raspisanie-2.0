@@ -6,7 +6,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 APP = str(Path(__file__).parent.parent / "stand" / "app.py")
-PAGES = ["overview", "teachers", "rooms", "disciplines", "groups", "quality", "export"]
+PAGES = ["overview", "teachers", "rooms", "disciplines", "groups", "quality", "spellings", "export"]
 
 
 @pytest.fixture

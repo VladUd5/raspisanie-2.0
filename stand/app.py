@@ -35,6 +35,7 @@ pages = st.navigation([
     st.Page("views/disciplines.py", title="Дисциплины", icon="📚"),
     st.Page("views/groups.py", title="Группы", icon="👥"),
     st.Page("views/quality.py", title="Качество данных", icon="🧹"),
+    st.Page("views/spellings.py", title="Словарь написаний", icon="🔤"),
     st.Page("views/export.py", title="Данные и экспорт", icon="⬇️"),
 ])
 st.session_state["ctx"] = filters.sidebar()

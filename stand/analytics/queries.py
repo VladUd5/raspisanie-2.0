@@ -100,6 +100,44 @@ def rule_audit_frame(conn: sqlite3.Connection, snapshot_id: int) -> pd.DataFrame
     return df
 
 
+
+def error_summary(sp: pd.DataFrame, kind: str) -> pd.DataFrame:
+    """Сколько написаний и занятий дал каждый вид ошибки в справочнике."""
+    d = sp[(sp["kind"] == kind) & (sp["error_kinds"] != "")]
+    d = d.assign(error_kind=d["error_kinds"].str.split(", ")).explode("error_kind")
+    out = d.groupby("error_kind").agg(spellings=("spelling", "count"), uses=("uses", "sum")).reset_index()
+    return out.sort_values(["uses", "error_kind"], ascending=[False, True], ignore_index=True)
+
+
+def spelling_cards(sp: pd.DataFrame, kind: str, error_kinds: tuple[str, ...] = (), sources: tuple[str, ...] = (),
+                   query: str = "", singles: bool = False) -> pd.DataFrame:
+    """Строки карточек «канон → написания»: фильтры отбирают карточки целиком.
+
+    Карточки упорядочены по числу занятий с неканоническими написаниями,
+    внутри карточки канон идёт первым, затем написания по числу занятий."""
+    d = sp[sp["kind"] == kind].copy()
+    strip = (lambda s: s.str.split("|", n=1).str[-1]) if kind == "room" else (lambda s: s)
+    d["shown"], d["target"] = strip(d["spelling"]), strip(d["canonical"])
+
+    def keep(mask: pd.Series) -> pd.DataFrame:
+        return d[d["canonical"].isin(d.loc[mask, "canonical"])]
+
+    if not singles:
+        d = d[d.groupby("canonical")["spelling"].transform("count") > 1]
+    if error_kinds:
+        d = keep(d["error_kinds"].str.split(", ").apply(lambda ks: bool(set(ks) & set(error_kinds))))
+    if sources:
+        d = keep(d["source"].isin(sources))
+    if query:
+        needle = query.casefold()
+        d = keep(d["spelling"].str.casefold().str.contains(needle, regex=False)
+                 | d["canonical"].str.casefold().str.contains(needle, regex=False))
+    off = d["uses"].where(d["shown"] != d["target"], 0)
+    d = d.assign(weight=off.groupby(d["canonical"]).transform("sum"),
+                 is_canon=(d["shown"] == d["target"]).astype(int))
+    return d.sort_values(["weight", "canonical", "is_canon", "uses"],
+                         ascending=[False, True, False, False], ignore_index=True)
+
 # --- фильтры и часы -------------------------------------------------------------
 
 def apply_filters(lessons: pd.DataFrame, f: Filters) -> pd.DataFrame:

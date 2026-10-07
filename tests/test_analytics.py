@@ -1,3 +1,4 @@
+import pandas as pd
 import pytest
 
 from analytics import queries as q
@@ -155,3 +156,43 @@ def test_snapshots_sorted_by_real_time_across_timezones(tmp_path, mini_snapshot_
         load_snapshot(conn, p)
     # 09:30 UTC = 12:30 МСК — позже, чем 12:00 МСК
     assert q.snapshots(conn)["file_name"].tolist() == ["b.json", "a.json"]
+
+
+SP = pd.DataFrame([
+    ("teacher", "Торопова В.В.", "Торопова В.В.", "словарь", "h", "", "", 7, None),
+    ("teacher", "Тороппова В.В.", "Торопова В.В.", "словарь", "h", "опечатка", "", 2, None),
+    ("teacher", "Торопова", "Торопова В.В.", "словарь?", "l", "нет инициалов", "", 6, None),
+    ("teacher", "Иванов И.И.", "Иванов И.И.", "как есть", "", "", "", 3, None),
+    ("room", "УК3|С-305 а", "УК3|С-305а", "разбор", "", "пробел", "", 2, None),
+    ("room", "УК3|С-305а", "УК3|С-305а", "разбор", "", "", "", 20, None),
+], columns=["kind", "spelling", "canonical", "source", "confidence", "error_kinds", "note", "uses", "score"])
+
+
+def test_error_summary():
+    s = q.error_summary(SP, "teacher")
+    assert list(s["error_kind"]) == ["нет инициалов", "опечатка"]
+    assert list(s["uses"]) == [6, 2]
+
+
+def test_spelling_cards_hide_singles_and_sort_by_weight():
+    cards = q.spelling_cards(SP, "teacher")
+    assert set(cards["canonical"]) == {"Торопова В.В."}
+    assert list(cards["spelling"]) == ["Торопова В.В.", "Торопова", "Тороппова В.В."]
+    assert cards["weight"].iloc[0] == 8
+    assert set(q.spelling_cards(SP, "teacher", singles=True)["canonical"]) == {"Торопова В.В.", "Иванов И.И."}
+
+
+def test_spelling_cards_filters_keep_whole_cards():
+    cards = q.spelling_cards(SP, "teacher", error_kinds=("опечатка",))
+    assert len(cards) == 3                        # карточка целиком, а не одна строка
+    assert q.spelling_cards(SP, "teacher", sources=("правило",)).empty
+    assert len(q.spelling_cards(SP, "teacher", query="ТОРОПП")) == 3
+
+
+def test_spelling_cards_rooms_show_without_building():
+    cards = q.spelling_cards(SP, "room")
+    assert set(cards["shown"]) == {"С-305 а", "С-305а"} and set(cards["target"]) == {"С-305а"}
+
+
+def test_spelling_cards_empty_frame():
+    assert q.spelling_cards(SP.iloc[0:0], "group").empty

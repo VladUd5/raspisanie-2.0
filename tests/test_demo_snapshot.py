@@ -13,7 +13,7 @@ from etl.load import connect, load_snapshot
 ROOT = Path(__file__).parent.parent
 DEMO = sorted((ROOT / "data" / "snapshots").glob("*.json"))
 APP = str(ROOT / "stand" / "app.py")
-PAGES = ["overview", "teachers", "rooms", "disciplines", "groups", "quality", "export"]
+PAGES = ["overview", "teachers", "rooms", "disciplines", "groups", "quality", "spellings", "export"]
 
 pytestmark = pytest.mark.skipif(not DEMO, reason="нет демо-снапшота в data/snapshots")
 
