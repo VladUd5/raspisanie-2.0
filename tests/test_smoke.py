@@ -161,3 +161,17 @@ def test_spellings_kind_switch_changes_cards(env):
     at.segmented_control[0].set_value("discipline").run()
     assert not at.exception, at.exception
     assert "Иностранный язык" in text() and "Шалаева Н.В." not in text()
+
+
+@pytest.mark.parametrize("page, column", [("teachers", "Часов в неделю"), ("disciplines", "Часов в неделю"),
+                                          ("rooms", "Часов в неделю"), ("groups", "Пар в неделю")])
+def test_ranking_can_show_least_loaded_first(env, page, column):
+    at = AppTest.from_file(APP, default_timeout=60)
+    at.run()
+    at.switch_page(f"views/{page}.py")
+    at.run()
+    order = at.segmented_control(key=f"{page}_order")
+    order.set_value("bottom").run()
+    assert not at.exception, at.exception
+    values = at.dataframe[0].value[column].tolist()
+    assert values == sorted(values)                      # наименее загруженные — первыми

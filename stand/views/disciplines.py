@@ -3,7 +3,7 @@ import streamlit as st
 from analytics import queries as q
 from charts.common import bar_h, stacked_by_type
 from labels import WEEK_TYPES, ru
-from ui import filters, theme
+from ui import filters, ranking, theme
 
 st.title("Дисциплины")
 st.caption("Часы в неделю по дисциплинам, кто их ведёт и у скольких групп. Варианты написания "
@@ -18,10 +18,11 @@ if summary.empty:
     st.info("В выборке нет дисциплин.")
     st.stop()
 
-top = st.slider("Сколько дисциплин показать на графиках", 5, 40, 15)
+top, ascending = ranking.controls("disciplines", "дисциплин", 40, 15)
+summary = q.rank(summary, "hours", "discipline", ascending)
 left, right = st.columns([3, 2])
-left.plotly_chart(bar_h(summary, "discipline", "hours", f"Топ-{top} дисциплин по часам", "часов в неделю",
-                        theme.mode(), top=top), width="stretch")
+left.plotly_chart(bar_h(summary, "discipline", "hours", ranking.title(top, ascending, "дисциплин", "часам в неделю"),
+                        "часов в неделю", theme.mode(), top=top), width="stretch")
 right.dataframe(ru(summary), hide_index=True, width="stretch", height=520,
                 column_config={"Часов в неделю": st.column_config.NumberColumn(format="%.2f")})
 

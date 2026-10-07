@@ -171,6 +171,12 @@ def _occupancy(df: pd.DataFrame, who: list[str]) -> pd.DataFrame:
     return ev
 
 
+def rank(df: pd.DataFrame, value: str, label: str, ascending: bool = False) -> pd.DataFrame:
+    """Рейтинг по значению: сверху самые большие или, при ascending, самые маленькие —
+    внизу рейтинга видны выбросы (одно-два занятия часто означают непроверенное написание)."""
+    return df.sort_values([value, label], ascending=[ascending, True], ignore_index=True)
+
+
 # --- преподаватели --------------------------------------------------------------
 
 def teacher_load(lessons: pd.DataFrame, teachers: pd.DataFrame, rooms: pd.DataFrame) -> pd.DataFrame:
@@ -305,6 +311,25 @@ def group_daily_load(lessons: pd.DataFrame, group: str) -> pd.DataFrame:
     df = lessons[lessons["group_name"] == group]
     out = df.groupby(["day_idx", "day"], as_index=False)["hours"].sum().sort_values("day_idx")
     return out[["day", "hours"]]
+
+
+def group_options(names) -> list[str]:
+    """Группы для выбора: обрывки имён от парсера («», «-101») — в конце, а не первыми."""
+    return sorted(set(names), key=lambda g: (2 if not g else 1 if g.startswith("-") else 0, g))
+
+
+def group_load(lessons: pd.DataFrame) -> pd.DataFrame:
+    """Пары и часы в неделю у каждой группы. Слот «день × время» — не больше одной пары:
+    параллельные подгруппы и числитель + знаменатель вместе дают одну пару."""
+    cols = ["group_name", "institute", "study_form", "pairs", "hours", "disciplines"]
+    if lessons.empty:
+        return pd.DataFrame(columns=cols)
+    who = ["group_name", "institute", "study_form"]
+    ev = _occupancy(lessons, who)
+    out = ev.groupby(who).agg(pairs=("per_week", "sum"), hours=("hours", "sum"))
+    out["disciplines"] = lessons[lessons["discipline"] != "—"].groupby(who)["discipline"].nunique()
+    out = out.fillna({"disciplines": 0}).astype({"disciplines": int}).reset_index()
+    return rank(out, "pairs", "group_name")[cols]
 
 
 # --- обзор и качество ---------------------------------------------------------------

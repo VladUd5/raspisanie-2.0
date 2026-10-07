@@ -3,7 +3,7 @@ import streamlit as st
 from analytics import queries as q
 from charts.common import bar_by_type, bar_h, heatmap
 from labels import WEEK_TYPES, ru
-from ui import filters, theme
+from ui import filters, ranking, theme
 
 st.title("Преподаватели")
 st.caption("Нагрузка за неделю по всем институтам и формам обучения в выборке. Поточная лекция для "
@@ -17,10 +17,11 @@ if load.empty:
     st.info("В выборке нет занятий с преподавателями.")
     st.stop()
 
-top = st.slider("Сколько преподавателей показать на графике", 5, 50, 20)
+top, ascending = ranking.controls("teachers", "преподавателей", 50, 20)
+load = q.rank(load, "hours", "teacher", ascending)
 left, right = st.columns([3, 2])
-left.plotly_chart(bar_h(load, "teacher", "hours", f"Топ-{top} по часам в неделю", "часов в неделю",
-                        theme.mode(), top=top), width="stretch")
+left.plotly_chart(bar_h(load, "teacher", "hours", ranking.title(top, ascending, "преподавателей", "часам в неделю"),
+                        "часов в неделю", theme.mode(), top=top), width="stretch")
 right.dataframe(ru(load), hide_index=True, width="stretch", height=520,
                 column_config={"Часов в неделю": st.column_config.NumberColumn(format="%.2f"),
                                "Занятий в неделю": st.column_config.NumberColumn(format="%.2f")})

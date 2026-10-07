@@ -205,3 +205,30 @@ def test_single_corrected_spelling_is_a_card_by_default():
                                      columns=SP.columns)])
     cards = q.spelling_cards(sp, "group")
     assert list(cards["spelling"]) == ["ВТ -404"]
+
+
+def test_rank_both_directions():
+    df = pd.DataFrame({"name": ["в", "а", "б", "г"], "hours": [3.0, 1.0, 1.0, 5.0]})
+    assert list(q.rank(df, "hours", "name")["name"]) == ["г", "в", "а", "б"]
+    assert list(q.rank(df, "hours", "name", ascending=True)["name"]) == ["а", "б", "в", "г"]
+
+
+def test_group_load_counts_pairs_per_week(frames):
+    lessons, *_ = frames
+    load = q.group_load(q.apply_filters(lessons, q.Filters()))
+    pairs = dict(zip(load["group_name"], load["pairs"]))
+    # числитель + знаменатель в одном слоте = 1 пара; разрезанная ячейка = 0.5 + 0.5
+    assert pairs == {"Б-Э-101": 4.0, "Б-БИ-101": 2.0, "бэ": 2.0}
+    assert list(load.columns[:3]) == ["group_name", "institute", "study_form"]
+
+
+def test_group_load_parallel_subgroups_are_one_pair():
+    base = dict(institute="И", study_form="Очная", group_name="Г-101", day_idx=0, time_from="08:30",
+                week_type="both", duration_h=1.5, per_week=1.0, hours=1.5)
+    df = pd.DataFrame([{**base, "lesson_type": "лабораторная", "discipline": "Химия", "subgroup": 1},
+                       {**base, "lesson_type": "лабораторная", "discipline": "Физика", "subgroup": 2}])
+    assert q.group_load(df)["pairs"].tolist() == [1.0]
+
+
+def test_group_options_put_broken_names_last():
+    assert q.group_options(["Б-Э-101", "", "-101", "Б-А-301"]) == ["Б-А-301", "Б-Э-101", "-101", ""]
