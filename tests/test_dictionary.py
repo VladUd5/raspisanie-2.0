@@ -62,3 +62,12 @@ def test_semicolon_separated_file_is_rejected_with_file_name(tmp_path):
 def test_empty_dictionary():
     d = Dictionary.empty()
     assert d.disciplines == {} and d.teacher("Иванов", None) is None and d.known_words() == set()
+
+
+def test_real_dictionary_is_consistent():
+    d = load_dictionary()
+    assert len(d.disciplines) > 2000 and len(d.teachers) > 600
+    canons = {e.canonical for e in d.disciplines.values()}
+    for spelling, by_discipline in d.teachers.items():
+        for discipline in by_discipline:
+            assert discipline == "" or discipline in canons, (spelling, discipline)

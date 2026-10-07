@@ -46,3 +46,11 @@ def test_pages_render_on_demo(tmp_path, monkeypatch, page):
     at.switch_page(f"views/{page}.py")
     at.run()
     assert not at.exception, at.exception
+
+
+def test_demo_snapshot_names_are_all_verified(tmp_path):
+    conn = connect(tmp_path / "t.db")
+    load_snapshot(conn, DEMO[-1])
+    left = conn.execute("SELECT kind, spelling FROM spellings WHERE kind IN ('discipline', 'teacher')"
+                        " AND source NOT IN ('словарь', 'словарь?')").fetchall()
+    assert left == []
