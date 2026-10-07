@@ -1,0 +1,27 @@
+# Имя проекта задано явно: из имени папки «Расписание 2.0» Compose
+# не может получить допустимое имя (только латиница, цифры, «-», «_»).
+name: raspisanie
+
+services:
+  parser:
+    build:
+      context: ./vendor/smart_schedule_parser
+      dockerfile: docker/Dockerfile
+    # как в апстрим-compose: сервер должен слушать все интерфейсы контейнера
+    command: bash -c "sed -i 's/HOST=.*/HOST=0.0.0.0/' /app/.env && /app/parser_server"
+    restart: unless-stopped
+
+  stand:
+    build:
+      context: .
+      dockerfile: stand/Dockerfile
+    environment:
+      PARSER_URL: http://parser:8080
+      COLLECT_TIMEOUT_S: "900"
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8501:8501"
+    depends_on:
+      - parser
+    restart: unless-stopped

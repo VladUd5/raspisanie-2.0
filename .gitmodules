@@ -1,0 +1,3 @@
+[submodule "vendor/smart_schedule_parser"]
+	path = vendor/smart_schedule_parser
+	url = https://github.com/mbfuss/smart_schedule_parser.git

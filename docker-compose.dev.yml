@@ -1,0 +1,7 @@
+# Пробросить порт парсера на localhost — для запуска стенда без Docker:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up parser
+#   PARSER_URL=http://localhost:8080 streamlit run stand/app.py
+services:
+  parser:
+    ports:
+      - "127.0.0.1:8080:8080"
