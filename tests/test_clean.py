@@ -46,3 +46,13 @@ def test_empty_is_service(raw):
 def test_never_raises_on_garbage():
     for raw in ["лек.", "пр.з. 324", "(((", "ауд.", "Иванов И.", "УК №", "\x03\x01\x02"]:
         clean(raw)
+
+
+@pytest.mark.parametrize("raw", ["доц. Тарбаев В.А. ауд. 324", "асс. Козлов С.Е. лаб.терап.", "ст.пр. Суркова Т.Н. 105"])
+def test_title_at_start_is_not_truncated(raw):
+    # звание в начале — обычная ячейка без дисциплины, а не оборванная
+    assert clean(raw).truncated is False
+
+
+def test_lowercase_fragment_is_truncated():
+    assert clean("отоки производ. на предпр-ях общ.пит. 1п/г С-219 Фоменко").truncated is True

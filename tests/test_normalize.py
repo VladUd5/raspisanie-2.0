@@ -120,3 +120,9 @@ def test_canonical_prefers_full_form_over_abbreviation():
 def test_tie_prefers_longer_variant():
     mapping, _ = cluster_disciplines(["Иностанный язык", "Иностранный язык"])
     assert set(mapping.values()) == {"Иностранный язык"}
+
+
+def test_canonical_variant_is_not_logged_as_its_own_merge():
+    # канон кластера («полная форма») не является представителем кластера — но и «склейкой» сам с собой не считается
+    mapping, merges = cluster_disciplines(["ОБЩАЯ ФИЗ.ПОДГОТОВКА"] * 5 + ["Общая физическая подготовка"])
+    assert all(m.alias != m.canonical for m in merges)

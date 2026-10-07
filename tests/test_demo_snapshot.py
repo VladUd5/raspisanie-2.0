@@ -27,7 +27,8 @@ def test_demo_snapshot_loads_with_reasonable_quality(tmp_path):
     assert cells > 3000 and lessons > 3000
     shares = conn.execute("SELECT AVG(has_type), AVG(has_discipline), AVG(has_teacher), AVG(has_room),"
                           " AVG(needs_review) FROM quality").fetchone()
-    assert shares[:4] > (0.9, 0.9, 0.9, 0.85)
+    # поэлементно: сравнение кортежей лексикографическое и проверяло бы только первое поле
+    assert all(s > floor for s, floor in zip(shares[:4], (0.9, 0.9, 0.9, 0.85))), shares
     assert shares[4] < 0.2
     started = time.monotonic()
     q.cells_quality_frame(conn, 1)            # без индексов по lesson_id — секунды

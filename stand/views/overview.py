@@ -18,15 +18,18 @@ with st.container(border=True):
         try:
             with st.status("Парсер обходит сайт вуза…", expanded=True) as status:
                 path = collect(parser_url(), schedule_url(), snapshots_dir(), collect_timeout_s())
-                status.write(f"Снапшот сохранён: `{path.name}`. Очищаю и загружаю в БД…")
+                # загрузка сразу после сбора, без вызовов st.* между ними: если пользователь
+                # прервёт выполнение страницы, снапшот уже будет в БД
                 conn = data.conn()
                 try:
                     new_id = load_snapshot(conn, path)
                 finally:
                     conn.close()
+                status.write(f"Снапшот `{path.name}` сохранён и загружен в БД.")
                 status.update(label="Готово", state="complete")
             st.cache_data.clear()
-            st.session_state["snapshot_id"] = new_id
+            # виджет «Снапшот» уже создан в сайдбаре — выбор применится на следующем запуске
+            st.session_state["pending_snapshot"] = new_id
             st.rerun()
         except CollectError as e:
             st.error(f"Сбор не удался: {e} Ранее собранные снапшоты по-прежнему доступны.")

@@ -78,3 +78,51 @@ def test_full_time_form_is_selected_by_default(env):
     at.run()
     forms = next(m for m in at.get("multiselect") if m.key == "f_forms")
     assert forms.value == ["Очная"]
+
+
+def _later_snapshot(src: Path, dst: Path, stamp: str = "2026-10-08T09:00:00+03:00") -> Path:
+    import json
+    data = json.loads(src.read_text())
+    dst.write_text(json.dumps({**data, "collected_at": stamp}, ensure_ascii=False))
+    return dst
+
+
+def test_successful_collect_selects_new_snapshot(env, monkeypatch, mini_snapshot_path):
+    """Успешный сбор не падает и выбирает новый снапшот (раньше — исключение
+    StreamlitWidgetAlreadyInstantiatedError на каждом успешном сборе)."""
+    import etl.collect
+
+    def fake_collect(parser_url, schedule_url, snapshots_dir, timeout_s=900):
+        return _later_snapshot(mini_snapshot_path, Path(snapshots_dir) / "2026-10-08_090000.json")
+
+    monkeypatch.setattr(etl.collect, "collect", fake_collect)
+    at = AppTest.from_file(APP, default_timeout=60)
+    at.run()
+    at.button[0].click()
+    at.run()
+    assert not at.exception, at.exception
+    at.run()
+    selected = at.selectbox(key="snapshot_id")
+    assert len(selected.options) == 2
+    assert selected.value == 2          # id нового снапшота; старый — 1
+
+
+def test_snapshot_added_while_running_is_picked_up(env, mini_snapshot_path):
+    """Файл, положенный в data/snapshots во время работы, появляется без перезапуска."""
+    at = AppTest.from_file(APP, default_timeout=60)
+    at.run()
+    assert len(at.selectbox(key="snapshot_id").options) == 1
+    _later_snapshot(mini_snapshot_path, env / "snapshots" / "2026-10-08_090000.json")
+    at.run()
+    assert not at.exception
+    assert len(at.selectbox(key="snapshot_id").options) == 2
+
+
+def test_export_orders_days_by_week(env):
+    at = AppTest.from_file(APP, default_timeout=60)
+    at.run()
+    at.switch_page("views/export.py")
+    at.run()
+    table = at.dataframe[0].value
+    days = table[table["Группа"] == "Б-Э-101"]["День"].tolist()
+    assert days.index("понедельник") < days.index("вторник")

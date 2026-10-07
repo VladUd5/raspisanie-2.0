@@ -146,7 +146,7 @@ def cluster_disciplines(names: list[str]) -> tuple[dict[str, str], list[Merge]]:
     merges = [
         Merge("discipline", name, mapping[name], score_of[disc_key(name)])
         for name in counts
-        if score_of[disc_key(name)] < 100
+        if score_of[disc_key(name)] < 100 and mapping[name] != name   # канон сам с собой не склеивается
     ]
     return mapping, merges
 

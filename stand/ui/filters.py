@@ -41,6 +41,8 @@ def sidebar() -> Context:
         return Context(None, Filters())
 
     ids = snaps["id"].tolist()
+    if "pending_snapshot" in st.session_state:          # только что собранный снапшот
+        st.session_state["snapshot_id"] = st.session_state.pop("pending_snapshot")
     if st.session_state.get("snapshot_id") not in ids:
         st.session_state["snapshot_id"] = ids[0]
     names = {r.id: f"{r.collected_at} · {r.lessons_cnt} занятий" for r in snaps.itertuples()}

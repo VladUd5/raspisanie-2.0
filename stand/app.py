@@ -8,16 +8,21 @@ from ui import filters
 st.set_page_config(page_title="Расписание 2.0", page_icon="📅", layout="wide")
 
 
-@st.cache_resource(show_spinner="Первичная загрузка снапшотов…")
-def _bootstrap(db: str, snaps: str) -> list[tuple[str, str]]:
-    conn = connect(db)
+def _load_new_snapshots() -> list[tuple[str, str]]:
+    """На каждом запуске: новые файлы в data/snapshots (положенные руками или
+    оставшиеся от прерванного сбора) попадают в БД без перезапуска стенда.
+    Если новых файлов нет, это один SELECT и glob."""
+    conn = connect(db_path())
     try:
-        return ensure_loaded(conn, snaps)[1]
+        loaded, errors = ensure_loaded(conn, snapshots_dir())
     finally:
         conn.close()
+    if loaded:
+        st.cache_data.clear()
+    return errors
 
 
-for name, err in _bootstrap(str(db_path()), str(snapshots_dir())):
+for name, err in _load_new_snapshots():
     st.warning(f"Снапшот `{name}` не загружен: {err}")
 
 # Страницы лежат в views/, а не в pages/: папку pages/ рядом с точкой входа

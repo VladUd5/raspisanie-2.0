@@ -54,7 +54,7 @@ _SERVICE = re.compile(
 # --- 3. аннотации часов и звания ----------------------------------------------
 _HOURS = re.compile(
     r"\d+\s*лек\.?\s*\+\s*\d+\s*пр(?:\.?\s*з)?\.?"   # 4 лек. + 5 пр.
-    r"|\(\s*\d*\s*(?:лек|пр)[^)]*\)"               # (5 лек.), (пр.з.)
+    r"|\(\s*\d*\s*(?:лек|пр)(?:\.|\s*з|(?![а-яё]))[^)]*\)"  # (5 лек.), (пр.з.) — но не «(продвинутый уровень)»
     r"|\(\s*\d+\s*\)"                              # (28)
     r"|(?<![А-ЯЁа-яё])с\s+\d{1,2}[.:]\d{2}",            # ЗАЧЕТ с 13.40
     re.I,
@@ -126,10 +126,10 @@ def _clean(subject: str) -> ParsedCell:
     if not re.search(rf"[{_L}A-Za-z]", s):
         return ParsedCell(is_service=True)
 
-    truncated = bool(re.match(rf"\s*[а-яё]", s)) and not _MARKER.match(s.lstrip())
-
     s = _HOURS.sub(" ", s)
     s = _TITLES.sub(" ", s)
+    # после вырезания званий: «доц. Тарбаев…» — ячейка без дисциплины, а не оборванная
+    truncated = bool(re.match(rf"\s*[а-яё]", s)) and not _MARKER.match(s.lstrip())
     s, places = _extract_places(s)
 
     lessons = [_parse_lesson(t, text, places) for t, text in _split(s)]
