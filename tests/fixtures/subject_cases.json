@@ -1,0 +1,1341 @@
+{
+ "description": "Реальные строки subject из PDF-расписаний vavilovsar.ru (выгрузка 2026-10-07). mode=strict: сравнивается список занятий целиком; discipline сравнивается по ключу disc_key (casefold, ё→е, схлопнутые пробелы, без пунктуации по краям); teachers и rooms — упорядоченные списки в каноническом виде. mode=flags: проверяются только флаги качества.",
+ "cases": [
+  {
+   "id": "typical-lecture",
+   "category": "типичная строка",
+   "raw": "лек. ЦЕНООБРАЗОВАНИЕ доц. Потоцкая Л.Н. 232",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ЦЕНООБРАЗОВАНИЕ",
+      "teachers": [
+       "Потоцкая Л.Н."
+      ],
+      "rooms": [
+       "232"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "typical-lecture-2",
+   "category": "типичная строка",
+   "raw": "лек. ИННОВАЦИОННЫЙ МЕНЕДЖМЕНТ АПК доц. Ледяев Т.Б. 234",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ИННОВАЦИОННЫЙ МЕНЕДЖМЕНТ АПК",
+      "teachers": [
+       "Ледяев Т.Б."
+      ],
+      "rooms": [
+       "234"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "typical-practice-surname",
+   "category": "типичная строка",
+   "raw": "пр.з. Макроэкономика Васильева 903",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Макроэкономика",
+      "teachers": [
+       "Васильева"
+      ],
+      "rooms": [
+       "903"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "typical-lab-st-pr",
+   "category": "типичная строка",
+   "raw": "лаб.з. Интернет и технологии Web-программирования ст. пр. Моршнев А.Ю. 294",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Интернет и технологии Web-программирования",
+      "teachers": [
+       "Моршнев А.Ю."
+      ],
+      "rooms": [
+       "294"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "surnames-only-comma",
+   "category": "преподаватель: только фамилии",
+   "raw": "пр. Управление сбытом в агробизнесе Воронова, Ларюков 316",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Управление сбытом в агробизнесе",
+      "teachers": [
+       "Воронова",
+       "Ларюков"
+      ],
+      "rooms": [
+       "316"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "title-glued",
+   "category": "преподаватель: звание слитно",
+   "raw": "лек.ПСИХОЛОГИЯ РАБОТЫ В МАЛЫХ ГРУППАХ доц.Измайлова Ю.М. 708",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ПСИХОЛОГИЯ РАБОТЫ В МАЛЫХ ГРУППАХ",
+      "teachers": [
+       "Измайлова Ю.М."
+      ],
+      "rooms": [
+       "708"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "title-glued-surname-only",
+   "category": "преподаватель: звание слитно",
+   "raw": "лек.ГОСУДАРСТВЕННОЕ ЭКОНОМИЧЕСКОЕ РЕГУЛИРОВАНИЕ АПК доц.Торопова 324",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ГОСУДАРСТВЕННОЕ ЭКОНОМИЧЕСКОЕ РЕГУЛИРОВАНИЕ АПК",
+      "teachers": [
+       "Торопова"
+      ],
+      "rooms": [
+       "324"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "title-full-word",
+   "category": "преподаватель: звание полностью",
+   "raw": "лек. ТЕХНОЛОГИЯ МЯСА И МЯСНЫХ ПРОДУКТОВ доцент Левина Т.Ю. 133",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ТЕХНОЛОГИЯ МЯСА И МЯСНЫХ ПРОДУКТОВ",
+      "teachers": [
+       "Левина Т.Ю."
+      ],
+      "rooms": [
+       "133"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "st-pr-spaced",
+   "category": "преподаватель: ст. пр.",
+   "raw": "лек. АУДИТ ст. пр. Шаронова Е.В. 230",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "АУДИТ",
+      "teachers": [
+       "Шаронова Е.В."
+      ],
+      "rooms": [
+       "230"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "two-teachers-space",
+   "category": "преподаватель: несколько через пробел",
+   "raw": "лб.з. физика Жиздюк А.А. Рыжова Е.В. 253",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "физика",
+      "teachers": [
+       "Жиздюк А.А.",
+       "Рыжова Е.В."
+      ],
+      "rooms": [
+       "253"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "teachers-glued",
+   "category": "преподаватель: ФИО слиплись",
+   "raw": "пр.з. иностранный язык Ларцева К.А. Садовникова Е.В. Мизюрова Э.Ю Дунаева Ю.С.Чернышев И.Д. 511",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "иностранный язык",
+      "teachers": [
+       "Ларцева К.А.",
+       "Садовникова Е.В.",
+       "Мизюрова Э.Ю.",
+       "Дунаева Ю.С.",
+       "Чернышев И.Д."
+      ],
+      "rooms": [
+       "511"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   },
+   "note": "'Мизюрова Э.Ю' без последней точки, 'Ю.С.Чернышев' без пробела"
+  },
+  {
+   "id": "initials-no-final-dot",
+   "category": "преподаватель: инициалы без точки",
+   "raw": "лек. ТЕСТИРОВАНИЕ ПО ПРЕДПРИЯТИЙ И ОРГ. доц. Журавлев А.Н 522 УК 2",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ТЕСТИРОВАНИЕ ПО ПРЕДПРИЯТИЙ И ОРГ.",
+      "teachers": [
+       "Журавлев А.Н."
+      ],
+      "rooms": [
+       "522"
+      ],
+      "building": "УК2",
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "teacher-room-pairs",
+   "category": "преподаватель: у каждого своя аудитория",
+   "raw": "пр.з .Иностанный язык Уколов 369, Бормосова 392",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Иностанный язык",
+      "teachers": [
+       "Уколов",
+       "Бормосова"
+      ],
+      "rooms": [
+       "369",
+       "392"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   },
+   "note": "опечатка дисциплины исправляется не здесь, а в normalize"
+  },
+  {
+   "id": "hours-per-teacher",
+   "category": "преподаватель: часы в скобках",
+   "raw": "пр.з. Государственное регулирование в агробизнесе Зуева (28), Думчева (10) 314",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Государственное регулирование в агробизнесе",
+      "teachers": [
+       "Зуева",
+       "Думчева"
+      ],
+      "rooms": [
+       "314"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   },
+   "note": "(28) и (10) — часы, не аудитории"
+  },
+  {
+   "id": "no-room-gym",
+   "category": "аудитория: физ. зал",
+   "raw": "ОБЩАЯ ФИЗИЧЕСКАЯ ПОДГОТОВКА физ. зал Пяткина",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "не определён",
+      "discipline": "ОБЩАЯ ФИЗИЧЕСКАЯ ПОДГОТОВКА",
+      "teachers": [
+       "Пяткина"
+      ],
+      "rooms": [
+       "физ. зал"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "no-room-gym-parens",
+   "category": "аудитория: физ. зал",
+   "raw": "ОБЩАЯ ФИЗИЧЕСКАЯ ПОДГОТОВКА (физ. зал) Кузьмин",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "не определён",
+      "discipline": "ОБЩАЯ ФИЗИЧЕСКАЯ ПОДГОТОВКА",
+      "teachers": [
+       "Кузьмин"
+      ],
+      "rooms": [
+       "физ. зал"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "room-word",
+   "category": "аудитория: словесная",
+   "raw": "лаб.з. цифровые технологии Гончаров Р.Д. Дергай Р.В. кванториум",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "цифровые технологии",
+      "teachers": [
+       "Гончаров Р.Д.",
+       "Дергай Р.В."
+      ],
+      "rooms": [
+       "кванториум"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "aud-single-digit",
+   "category": "аудитория: ауд. + одна цифра",
+   "raw": "лек. А С У Т П доцент Мокрецов И.В ауд.5",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "АСУТП",
+      "teachers": [
+       "Мокрецов И.В."
+      ],
+      "rooms": [
+       "5"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   },
+   "note": "разрядка + инициалы без точки + однозначная аудитория"
+  },
+  {
+   "id": "aud-location",
+   "category": "аудитория: ауд. с локацией",
+   "raw": "лаб.з. Агрофитоценология Мухатова Ж.Н. АГРОЦЕНТР, корпус ФТИК, ауд. 1.",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Агрофитоценология",
+      "teachers": [
+       "Мухатова Ж.Н."
+      ],
+      "rooms": [
+       "1"
+      ],
+      "building": "ФТИК",
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "room-before-teachers",
+   "category": "аудитория: перед ФИО",
+   "raw": "лаб.з. Химия 328, 334 Логачева Е.А. , Цыгулева Э.И.",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Химия",
+      "teachers": [
+       "Логачева Е.А.",
+       "Цыгулева Э.И."
+      ],
+      "rooms": [
+       "328",
+       "334"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "room-before-title",
+   "category": "аудитория: перед ФИО",
+   "raw": "лек.НАУЧНЫЕ ОСНОВЫ ПРОИЗВОДСТВА МЯСНЫХ ПРОДУКТОВ 133 доцент Левина Т.Ю.",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "НАУЧНЫЕ ОСНОВЫ ПРОИЗВОДСТВА МЯСНЫХ ПРОДУКТОВ",
+      "teachers": [
+       "Левина Т.Ю."
+      ],
+      "rooms": [
+       "133"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "room-letter-building",
+   "category": "аудитория: буквенный корпус С-",
+   "raw": "лек. ТЕХНОЛОГ. ПОТОКИ ПРОИЗВОДСТВ НА ПРЕДПРИЯТИЯХ ОБЩЕСТ. ПИТАНИЯ доц.Фоменко О.С. С-149",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ТЕХНОЛОГ. ПОТОКИ ПРОИЗВОДСТВ НА ПРЕДПРИЯТИЯХ ОБЩЕСТ. ПИТАНИЯ",
+      "teachers": [
+       "Фоменко О.С."
+      ],
+      "rooms": [
+       "С-149"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "room-letter-building-mid",
+   "category": "аудитория: буквенный корпус С-",
+   "raw": "пр.з. Технолог. потоки производ. на препредприятиях общест.питания С-219 доц.Фоменко О.С.",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Технолог. потоки производ. на препредприятиях общест.питания",
+      "teachers": [
+       "Фоменко О.С."
+      ],
+      "rooms": [
+       "С-219"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "building-parens",
+   "category": "аудитория: корпус УК",
+   "raw": "лек. ОСНОВЫ ВОЕННОЙ ПОДГОТОВКИ доц. Хизов А.В. 438 (УК 2)",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ОСНОВЫ ВОЕННОЙ ПОДГОТОВКИ",
+      "teachers": [
+       "Хизов А.В."
+      ],
+      "rooms": [
+       "438"
+      ],
+      "building": "УК2",
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "building-number-sign",
+   "category": "аудитория: корпус УК",
+   "raw": "ЗАЧЕТ Основы военной подготовки доц. Палади А.А. УК №2 ауд. 202",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "зачёт",
+      "discipline": "Основы военной подготовки",
+      "teachers": [
+       "Палади А.А."
+      ],
+      "rooms": [
+       "202"
+      ],
+      "building": "УК2",
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "room-letter-spaced",
+   "category": "аудитория: литера через пробел",
+   "raw": "лек. ЭКОНОМ. ОЦЕНКА БИЗНЕСА проф. Лявина М.Ю 431 а УК 2",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ЭКОНОМ. ОЦЕНКА БИЗНЕСА",
+      "teachers": [
+       "Лявина М.Ю."
+      ],
+      "rooms": [
+       "431а"
+      ],
+      "building": "УК2",
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "rooms-slash",
+   "category": "аудитория: несколько через /",
+   "raw": "пр.з. Русский язык и культура речи Бормосова 1004 / 535",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Русский язык и культура речи",
+      "teachers": [
+       "Бормосова"
+      ],
+      "rooms": [
+       "1004",
+       "535"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "rooms-slash-lecture",
+   "category": "аудитория: несколько через /",
+   "raw": "лек. СТРАТЕГИЧЕСКОЕ УПРАВЛЕНИЕ НА ПРЕДПРИЯТИИ АПК проф. Александрова Л.А. 234 / 324",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "СТРАТЕГИЧЕСКОЕ УПРАВЛЕНИЕ НА ПРЕДПРИЯТИИ АПК",
+      "teachers": [
+       "Александрова Л.А."
+      ],
+      "rooms": [
+       "234",
+       "324"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "type-glued-practice",
+   "category": "тип: слитно с дисциплиной",
+   "raw": "пр.з.Экономика предприятия АПК Родионова, Думчева 533",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Экономика предприятия АПК",
+      "teachers": [
+       "Родионова",
+       "Думчева"
+      ],
+      "rooms": [
+       "533"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "type-lb-typo",
+   "category": "тип: опечатка лб.з.",
+   "raw": "лб.з. физика Субботина Е.Д. Скворцова Г.Д. 253",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "физика",
+      "teachers": [
+       "Субботина Е.Д.",
+       "Скворцова Г.Д."
+      ],
+      "rooms": [
+       "253"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "type-no-dot",
+   "category": "тип: без точки",
+   "raw": "лек СПЕЦИАЛЬНАЯ ПЕДАГОГИКА И СПЕЦИАЛЬНАЯ ПСИХОЛОГИЯ доц.Измайлова Ю.М. 708",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "СПЕЦИАЛЬНАЯ ПЕДАГОГИКА И СПЕЦИАЛЬНАЯ ПСИХОЛОГИЯ",
+      "teachers": [
+       "Измайлова Ю.М."
+      ],
+      "rooms": [
+       "708"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "type-space-dot",
+   "category": "тип: 'пр.з .'",
+   "raw": "пр.з . Финансы Антонова Е.А. 1003",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Финансы",
+      "teachers": [
+       "Антонова Е.А."
+      ],
+      "rooms": [
+       "1003"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "type-lek-space-dot",
+   "category": "тип: 'лек .'",
+   "raw": "лек .ЦИФРОВЫЕ ТЕХНОЛОГИИ доц. Гончаров Р.Д. кванториум",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ЦИФРОВЫЕ ТЕХНОЛОГИИ",
+      "teachers": [
+       "Гончаров Р.Д."
+      ],
+      "rooms": [
+       "кванториум"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "type-zachet",
+   "category": "тип: зачёт",
+   "raw": "ЗАЧЕТ Отечественный и зарубежный опыт в агрономии доц. Субботин А.Г. 712",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "зачёт",
+      "discipline": "Отечественный и зарубежный опыт в агрономии",
+      "teachers": [
+       "Субботин А.Г."
+      ],
+      "rooms": [
+       "712"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "type-zachet-bare",
+   "category": "тип: зачёт без ФИО и аудитории",
+   "raw": "ЗАЧЕТ Методы научных исследований в землеустройстве и кадастрах",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "зачёт",
+      "discipline": "Методы научных исследований в землеустройстве и кадастрах",
+      "teachers": [],
+      "rooms": [],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "no-discipline",
+   "category": "дисциплина: отсутствует",
+   "raw": "доц. Тарбаев В.А. ауд. 324",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "не определён",
+      "discipline": null,
+      "teachers": [
+       "Тарбаев В.А."
+      ],
+      "rooms": [
+       "324"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   },
+   "note": "дисциплина в соседней ячейке PDF; discipline=null → needs_review"
+  },
+  {
+   "id": "letter-spacing",
+   "category": "дисциплина: разрядка",
+   "raw": "лек. С К О Т О В О Д С Т В О доцент Бирюков О.И. 403",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "СКОТОВОДСТВО",
+      "teachers": [
+       "Бирюков О.И."
+      ],
+      "rooms": [
+       "403"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "abbreviations",
+   "category": "дисциплина: сокращения",
+   "raw": "лек. ГОС. РЕГУЛИР. В АГРОБИЗНЕСЕ доц.Торопова В.В. 533",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ГОС. РЕГУЛИР. В АГРОБИЗНЕСЕ",
+      "teachers": [
+       "Торопова В.В."
+      ],
+      "rooms": [
+       "533"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   },
+   "note": "сокращения раскрываются не в clean, а fuzzy-склейкой в normalize"
+  },
+  {
+   "id": "abbrev-no-teacher-room",
+   "category": "дисциплина: сокращения",
+   "raw": "пр.з. Управление земельными ресурсами и объектами недвиж-ти",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Управление земельными ресурсами и объектами недвиж-ти",
+      "teachers": [],
+      "rooms": [],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "caps-repeated",
+   "category": "дисциплина: повтор капсом",
+   "raw": "лек. ИСТОРИЯ РОССИИ ИСТОРИЯ РОССИИ доц. Котельников В.А. 801",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ИСТОРИЯ РОССИИ",
+      "teachers": [
+       "Котельников В.А."
+      ],
+      "rooms": [
+       "801"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "caps-repeated-3",
+   "category": "дисциплина: повтор капсом",
+   "raw": "лек БУХГАЛТЕРСКИЙ ФИНАНСОВЫЙ УЧЕТ БУХГАЛТЕРСКИЙ ФИНАНСОВЫЙ УЧЕТ БУХГАЛТЕРСКИЙ ФИНАНСОВЫЙ УЧЕТ доц. Новоселова С.А. 232",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "БУХГАЛТЕРСКИЙ ФИНАНСОВЫЙ УЧЕТ",
+      "teachers": [
+       "Новоселова С.А."
+      ],
+      "rooms": [
+       "232"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "multi-lecture-practice",
+   "category": "структура: несколько занятий",
+   "raw": "лек. ИСТОРИЯ МИРОВОЙ КУЛЬТУРЫ ст.преп. Аленичева Н.В. 1004 пр.з. История мировой культуры Аленичева Н.В. 1004",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ИСТОРИЯ МИРОВОЙ КУЛЬТУРЫ",
+      "teachers": [
+       "Аленичева Н.В."
+      ],
+      "rooms": [
+       "1004"
+      ],
+      "building": null,
+      "subgroup": null
+     },
+     {
+      "lesson_type": "практика",
+      "discipline": "История мировой культуры",
+      "teachers": [
+       "Аленичева Н.В."
+      ],
+      "rooms": [
+       "1004"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "multi-lab-lecture",
+   "category": "структура: несколько занятий",
+   "raw": "лаб.з. Информатика Пахомова Т.В., Слепцова Л.А. 807, 230 лек. ИНФОРМАТИКА доц. Пахомова Т.В. 230",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Информатика",
+      "teachers": [
+       "Пахомова Т.В.",
+       "Слепцова Л.А."
+      ],
+      "rooms": [
+       "807",
+       "230"
+      ],
+      "building": null,
+      "subgroup": null
+     },
+     {
+      "lesson_type": "лекция",
+      "discipline": "ИНФОРМАТИКА",
+      "teachers": [
+       "Пахомова Т.В."
+      ],
+      "rooms": [
+       "230"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "multi-with-hours",
+   "category": "структура: несколько занятий + часы",
+   "raw": "лек. ВЫСШАЯ МАТЕМАТИКА доц. Гиляжева Д.Н. 702 лек. ЭКОНОМИЧЕСКАЯ КУЛЬТУРА доц. Васильева О.А. 5 лек. + 4 пр. 234",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ВЫСШАЯ МАТЕМАТИКА",
+      "teachers": [
+       "Гиляжева Д.Н."
+      ],
+      "rooms": [
+       "702"
+      ],
+      "building": null,
+      "subgroup": null
+     },
+     {
+      "lesson_type": "лекция",
+      "discipline": "ЭКОНОМИЧЕСКАЯ КУЛЬТУРА",
+      "teachers": [
+       "Васильева О.А."
+      ],
+      "rooms": [
+       "234"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   },
+   "note": "'5 лек. + 4 пр.' — часы: не маркер нового занятия и не аудитория"
+  },
+  {
+   "id": "multi-hours-and-repeat",
+   "category": "структура: несколько занятий + часы + повтор",
+   "raw": "лек. ЭКОНОМИЧЕСКАЯ КУЛЬТУРА доц. Котар О.К. 4 лек. + 5 пр. 324 лек. ИСТОРИЯ РОССИИ ИСТОРИЯ РОССИИ ИСТОРИЯ РОССИИ ИСТОРИЯ РОССИИ проф. Шалаева Н.В. 324",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ЭКОНОМИЧЕСКАЯ КУЛЬТУРА",
+      "teachers": [
+       "Котар О.К."
+      ],
+      "rooms": [
+       "324"
+      ],
+      "building": null,
+      "subgroup": null
+     },
+     {
+      "lesson_type": "лекция",
+      "discipline": "ИСТОРИЯ РОССИИ",
+      "teachers": [
+       "Шалаева Н.В."
+      ],
+      "rooms": [
+       "324"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "multi-spaced-initials",
+   "category": "структура: несколько занятий",
+   "raw": "лек. ЭКОНОМИЧЕСКАЯ КУЛЬТУРА доц. Васильева О.А., доц. Котар О.К. 232 пр.з. Экономическая культура Васильева О.А., Котар О. К. 232",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ЭКОНОМИЧЕСКАЯ КУЛЬТУРА",
+      "teachers": [
+       "Васильева О.А.",
+       "Котар О.К."
+      ],
+      "rooms": [
+       "232"
+      ],
+      "building": null,
+      "subgroup": null
+     },
+     {
+      "lesson_type": "практика",
+      "discipline": "Экономическая культура",
+      "teachers": [
+       "Васильева О.А.",
+       "Котар О.К."
+      ],
+      "rooms": [
+       "232"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   },
+   "note": "'Котар О. К.' — инициалы через пробел"
+  },
+  {
+   "id": "multi-subgroups",
+   "category": "структура: несколько занятий + подгруппы",
+   "raw": "2-я подгруппа лаб. з. Информатика Рубцова С.Н. 531 лаб. Геология Губов В.И. , Молчанова Н.П. 603",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Информатика",
+      "teachers": [
+       "Рубцова С.Н."
+      ],
+      "rooms": [
+       "531"
+      ],
+      "building": null,
+      "subgroup": 2
+     },
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Геология",
+      "teachers": [
+       "Губов В.И.",
+       "Молчанова Н.П."
+      ],
+      "rooms": [
+       "603"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "service-0",
+   "category": "служебная строка",
+   "raw": "переход на УК 2",
+   "mode": "strict",
+   "expected": {
+    "service": true,
+    "lessons": []
+   }
+  },
+  {
+   "id": "service-1",
+   "category": "служебная строка",
+   "raw": "Кураторский час",
+   "mode": "strict",
+   "expected": {
+    "service": true,
+    "lessons": []
+   }
+  },
+  {
+   "id": "service-2",
+   "category": "служебная строка",
+   "raw": ",",
+   "mode": "strict",
+   "expected": {
+    "service": true,
+    "lessons": []
+   }
+  },
+  {
+   "id": "service-3",
+   "category": "служебная строка",
+   "raw": "* * *",
+   "mode": "strict",
+   "expected": {
+    "service": true,
+    "lessons": []
+   }
+  },
+  {
+   "id": "service-4",
+   "category": "служебная строка",
+   "raw": "п е р е е з д",
+   "mode": "strict",
+   "expected": {
+    "service": true,
+    "lessons": []
+   }
+  },
+  {
+   "id": "service-5",
+   "category": "служебная строка",
+   "raw": "Переезд на УК3",
+   "mode": "strict",
+   "expected": {
+    "service": true,
+    "lessons": []
+   }
+  },
+  {
+   "id": "service-prefix-then-lesson",
+   "category": "служебная строка + занятие",
+   "raw": "переход на УК 1 переход на УК 1 лек. БОТАНИКА БОТАНИКА БОТАНИКА БОТАНИКА БОТАНИКА доц. Шевченко Е.Н. 324",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "БОТАНИКА",
+      "teachers": [
+       "Шевченко Е.Н."
+      ],
+      "rooms": [
+       "324"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "subgroup-prefix",
+   "category": "подгруппа",
+   "raw": "2-я подгруппа лаб. з. Информатика Рубцова С.Н. 807",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Информатика",
+      "teachers": [
+       "Рубцова С.Н."
+      ],
+      "rooms": [
+       "807"
+      ],
+      "building": null,
+      "subgroup": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "subgroup-middle",
+   "category": "подгруппа",
+   "raw": "лаб. з. Информатика 1-я подгруппа Слепцова Л.А. 807",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Информатика",
+      "teachers": [
+       "Слепцова Л.А."
+      ],
+      "rooms": [
+       "807"
+      ],
+      "building": null,
+      "subgroup": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "subgroup-pg",
+   "category": "подгруппа",
+   "raw": "лаб.з. Биоорганическая химия 1п/г 530 проф.Древко Б.И.",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Биоорганическая химия",
+      "teachers": [
+       "Древко Б.И."
+      ],
+      "rooms": [
+       "530"
+      ],
+      "building": null,
+      "subgroup": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "truncated-cell",
+   "category": "обрезанная ячейка",
+   "raw": "отоки производ. на предпр-ях общ.пит. 1п/г С-219 Фоменко /Методы исслед.сырья и пищ.прод. 2п/г С-",
+   "mode": "flags",
+   "expected_flags": {
+    "needs_review": true
+   },
+   "note": "начало ячейки оборвано pdfplumber; точный разбор не требуется, важно не упасть и пометить"
+  }
+ ]
+}
