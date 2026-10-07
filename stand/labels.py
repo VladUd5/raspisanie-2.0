@@ -28,3 +28,22 @@ def institute_label(slug: str) -> str:
 
 def form_label(slug: str) -> str:
     return FORMS.get(slug, slug or "—")
+
+COLUMNS = {
+    "teacher": "Преподаватель", "hours": "Часов в неделю", "lessons": "Занятий в неделю",
+    "disciplines": "Дисциплин", "groups": "Групп", "rooms": "Аудитории", "room_label": "Аудитория",
+    "room_building": "Корпус аудитории", "room": "Номер", "discipline": "Дисциплина", "teachers": "Преподаватели",
+    "lesson_type": "Тип занятия", "day": "День", "time_from": "Начало", "time_to": "Конец",
+    "week_type": "Неделя", "institute": "Институт", "study_form": "Форма обучения", "group_name": "Группа",
+    "cell_building": "Корпус", "subgroup": "Подгруппа", "subject_raw": "Исходный текст ячейки",
+    "lessons_in_cell": "Занятий в ячейке", "kind": "Что", "alias": "Вариант написания",
+    "canonical": "Каноническое название", "score": "Похожесть", "field": "Поле", "share": "Доля, %",
+    "events": "Занятий в слоте", "count": "Занятий", "collected_at": "Собран", "source_url": "Источник",
+    "file_name": "Файл", "groups_cnt": "Групп", "cells_cnt": "Ячеек", "lessons_cnt": "Занятий после разбора",
+    "service_cnt": "Служебных строк",
+}
+
+
+def ru(df):
+    """Переименовать колонки DataFrame для показа пользователю."""
+    return df.rename(columns=COLUMNS)

@@ -68,10 +68,14 @@ def stacked_by_type(df: pd.DataFrame, label: str, value: str, title: str, value_
         fig.add_bar(x=part[value].fillna(0), y=order, orientation="h", name=t,
                     marker=dict(color=colors[t], line=dict(color=SURFACE[mode], width=1)),
                     hovertemplate=f"%{{y}}<br>{t}: %{{x:.2f}} {value_title}<extra></extra>")
-    fig.update_layout(barmode="stack", bargap=0.35,
-                      legend=dict(orientation="h", y=-0.12, x=0, traceorder="normal"))
     fig.update_xaxes(title=value_title)
-    return _finish(fig, title, max(260, 26 * len(order) + 140))
+    fig = _finish(fig, title, max(260, 26 * len(order) + 160))
+    # легенда — над областью графика, под заголовком: снизу она перекрывала подписи оси
+    fig.update_layout(barmode="stack", bargap=0.35, margin=dict(t=84),
+                      title=dict(y=0.98, yanchor="top"),
+                      legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0,
+                                  traceorder="normal"))
+    return fig
 
 
 def heatmap(pivot: pd.DataFrame, title: str, value_title: str, mode: str = "light") -> go.Figure:
