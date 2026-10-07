@@ -56,3 +56,21 @@ def test_title_at_start_is_not_truncated(raw):
 
 def test_lowercase_fragment_is_truncated():
     assert clean("отоки производ. на предпр-ях общ.пит. 1п/г С-219 Фоменко").truncated is True
+
+
+@pytest.mark.parametrize("raw, rooms, rooms_raw", [
+    ("лек. КОРПОРАТИВНЫЙ МЕНЕДЖМЕНТ В АГРОБИЗНЕСЕ доц. Власова О.В. 431 а УК 2", ["431а"], ["431 а"]),
+    ("Лек. КЛИНИЧЕСКАЯ ДИАГНОСТИКА доцент Анникова Л.В. ауд.№ 7", ["7"], ["7"]),
+    ("пр.з. Правоведение С-305а доц.Рубанова М.Е.", ["С-305а"], ["С-305а"]),
+    ("пр.з. Иностранный язык лаб.з. Ин-яз ст.пр. Гришкова В.А., ст.пр. Бобылева Г.А.",
+     ["Лаб. иностранных языков"], ["лаб.з. Ин-яз"]),
+])
+def test_rooms_raw_keeps_written_form(raw, rooms, rooms_raw):
+    lesson = clean(raw).lessons[0]
+    assert lesson.rooms == rooms
+    assert lesson.rooms_raw == rooms_raw
+
+
+def test_c_prefix_does_not_take_assistant_title_as_letter():
+    # «С-208 асс.» — «а» здесь начало «асс.», а не литера аудитории
+    assert clean("пр.з. Философия С-208 асс.Буняев М.Б.").lessons[0].rooms == ["С-208"]

@@ -1960,6 +1960,260 @@
     ]
    },
    "note": "«(продвинутый уровень)» — часть названия, а не пометка часов вида «(5 пр.з.)»"
+  },
+  {
+   "id": "room-letter-after-c-prefix",
+   "category": "аудитория С- с буквой",
+   "raw": "пр.з. Правоведение С-305а доц.Рубанова М.Е.",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Правоведение",
+      "teachers": [
+       "Рубанова М.Е."
+      ],
+      "rooms": [
+       "С-305а"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "lowercase-uk",
+   "category": "корпус строчными",
+   "raw": "лаб.з. почвоведение Губов В.И. ук 1 610",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "почвоведение",
+      "teachers": [
+       "Губов В.И."
+      ],
+      "rooms": [
+       "610"
+      ],
+      "building": "УК1",
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "hydraulic-lab",
+   "category": "аудитория ГЛ-N",
+   "raw": "пр.з. гидравлика Миркина Е.Н. ГЛ-5",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "гидравлика",
+      "teachers": [
+       "Миркина Е.Н."
+      ],
+      "rooms": [
+       "ГЛ-5"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "lhm-lab",
+   "category": "аудитория ЛХМ",
+   "raw": "лек. ПАТЕНТОВЕДЕНИЕ проф. Фокин С.В. ЛХМ",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ПАТЕНТОВЕДЕНИЕ",
+      "teachers": [
+       "Фокин С.В."
+      ],
+      "rooms": [
+       "ЛХМ"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "aud-number-sign",
+   "category": "ауд. № N",
+   "raw": "Лек. КЛИНИЧЕСКАЯ ДИАГНОСТИКА доцент Анникова Л.В. ауд.№ 7",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "КЛИНИЧЕСКАЯ ДИАГНОСТИКА",
+      "teachers": [
+       "Анникова Л.В."
+      ],
+      "rooms": [
+       "7"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "ud-typo",
+   "category": "опечатка уд. вместо ауд.",
+   "raw": "лек. БИОТЕХНИКА ВОСПРОИЗВОДСТВА С ОСНОВАМИ АКУШЕРСТВА профессор Семиволос А.М. уд.Малая",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "БИОТЕХНИКА ВОСПРОИЗВОДСТВА С ОСНОВАМИ АКУШЕРСТВА",
+      "teachers": [
+       "Семиволос А.М."
+      ],
+      "rooms": [
+       "Малая"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "aud-patanatomy",
+   "category": "ауд. с названием",
+   "raw": "лек.ФИЗИЧЕСКАЯ КУЛЬТУРА И СПОРТ проф. Милехин А.В. ауд. Пат.анатомии",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ФИЗИЧЕСКАЯ КУЛЬТУРА И СПОРТ",
+      "teachers": [
+       "Милехин А.В."
+      ],
+      "rooms": [
+       "Ауд. патанатомии"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "lab-inyaz-after-lesson",
+   "category": "лаб.з. Ин-яз — аудитория",
+   "raw": "пр.з. Иностранный язык лаб.з. Ин-яз ст.пр. Гришкова В.А., ст.пр. Бобылева Г.А.",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Иностранный язык",
+      "teachers": [
+       "Гришкова В.А.",
+       "Бобылева Г.А."
+      ],
+      "rooms": [
+       "Лаб. иностранных языков"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "uk-comma-two-digit",
+   "category": "двузначная аудитория после УК№N,",
+   "raw": "лаб.з. Механизация и автоматизация животноводства УК№2, 40 асс.Березкин А.Сю",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Механизация и автоматизация животноводства",
+      "teachers": [
+       "Березкин А.С."
+      ],
+      "rooms": [
+       "40"
+      ],
+      "building": "УК2",
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "room-with-dot",
+   "category": "аудитория с точкой",
+   "raw": "лек.ИНЖЕНЕРНОЕ ОБЕСПЕЧЕНИЕ БИОТЕХНОЛОГИЧЕСКИХ ПРОЦЕССОВ доц. Анисимов А.В. 352.31",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ИНЖЕНЕРНОЕ ОБЕСПЕЧЕНИЕ БИОТЕХНОЛОГИЧЕСКИХ ПРОЦЕССОВ",
+      "teachers": [
+       "Анисимов А.В."
+      ],
+      "rooms": [
+       "352.31"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "empty-uk-sign",
+   "category": "УК№ без номера",
+   "raw": "лаб.з. Электротехника 1п/г УК№ ,416 Абрамова В.С.",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лабораторная",
+      "discipline": "Электротехника",
+      "teachers": [
+       "Абрамова В.С."
+      ],
+      "rooms": [
+       "416"
+      ],
+      "building": null,
+      "subgroup": 1
+     }
+    ]
+   }
   }
  ]
 }

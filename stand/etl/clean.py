@@ -25,6 +25,8 @@ class ParsedLesson:
     rooms: list[str] = field(default_factory=list)
     building: str | None = None
     subgroup: int | None = None
+    rooms_raw: list[str] = field(default_factory=list)   # как записано в ячейке, параллельно rooms
+    type_raw: str | None = None                            # маркер типа как в ячейке («лек.», «лекю»)
 
     @property
     def needs_review(self) -> bool:
@@ -88,13 +90,20 @@ _MARKER = re.compile(
 
 # --- 6. поля занятия ----------------------------------------------------------
 _SUBGROUP = re.compile(r"(?<!\d)(\d)\s*(?:-?\s*я\s*)?(?:п/г|подгрупп[аы])", re.I)
-_BUILDING_UK = re.compile(rf"\(?(?<![{_L}])УК\s*№?\s*(\d)\)?")
+_BUILDING_UK = re.compile(
+    rf"\(?(?<![{_L}])(?i:УК)\s*№?\s*(?P<uk>\d)\)?"
+    rf"(?:\s*,\s*(?P<room>\d{{2,4}})(?![\d.:]))?"           # «УК№2, 40» — аудитория сразу за корпусом
+)
+_EMPTY_UK = re.compile(rf"(?<![{_L}])(?i:УК)\s*№(?!\s*\d)")   # «УК№ ,416» — номер корпуса потерян
+_ROOM_PREFIX = re.compile(r"^(?:ауд|уд)\s*\.?\s*№?\s*", re.I)
 _BUILDING_NAMED = re.compile(r"(?:[А-ЯЁ]{3,},?\s*)?корпус\s+([А-ЯЁ]{2,}),?")
 _ROOMS = re.compile(
     rf"{_PH}(?P<ph>\d+){_PH}"
-    rf"|(?<![{_L}])(?i:ауд)\s*\.?\s*(?P<named>Большая|Малая)"
-    rf"|(?<![{_L}])(?i:ауд)\s*\.?\s*(?P<aud>\d{{1,4}})(?:\s?(?P<audl>[аб])(?![{_L}]))?\.?"
-    rf"|(?<![\w.\-])(?P<cl>[СCХX])\s?-\s?(?P<c>\d{{2,4}})"
+    rf"|(?<![{_L}])(?:(?i:ауд)|уд)\s*\.?\s*(?P<named>Большая|Малая)"
+    rf"|(?<![{_L}])(?i:ауд)\s*\.?\s*№?\s*(?P<aud>\d{{1,4}})(?:\s?(?P<audl>[аб])(?![{_L}]))?\.?"
+    rf"|(?<![\w.\-])(?P<cl>[СCХX])\s?-\s?(?P<c>\d{{2,4}})(?:\s?(?P<cll>[аб])(?![{_L}]))?"
+    rf"|(?<![\w\-])ГЛ\s?-\s?(?P<gl>\d{{1,2}})(?!\d)"
+    rf"|(?<![\w:\-.])(?P<dot>\d{{3}}\.\d{{2}})(?![\d.:])"         # «352.31» — формат не ясен, берём как есть
     rf"|(?<![\w:\-])(?<!\d[.:])(?P<num>\d{{3,4}})(?!\d)(?:\s?(?P<numl>[аб])(?![{_L}]))?(?![.:]\d)"
     rf"|(?<![\w:\-(])(?<!\d[.:])(?P<num2>\d{{2}})(?=[\s.]*$)"      # «Демин Е.Е.33», «… В.В. 40» в конце
 )
@@ -136,11 +145,11 @@ def _clean(subject: str) -> ParsedCell:
     return ParsedCell(lessons=lessons, truncated=truncated)
 
 
-def _extract_places(s: str) -> tuple[str, list[tuple[str, str | None]]]:
-    places: list[tuple[str, str | None]] = []
+def _extract_places(s: str) -> tuple[str, list[tuple[str, str | None, str]]]:
+    places: list[tuple[str, str | None, str]] = []
     for loc in LOCATIONS:
         def repl(m: re.Match, loc=loc) -> str:
-            places.append((m.expand(loc.room), loc.building))
+            places.append((m.expand(loc.room), loc.building, m.group(0)))
             return f" {_PH}{len(places) - 1}{_PH} "
         s = loc.pattern.sub(repl, s)
     return s, places
@@ -171,7 +180,7 @@ def _split(s: str) -> list[tuple[str, str]]:
     return parts
 
 
-def _parse_lesson(lesson_type: str, text: str, places: list[tuple[str, str | None]]) -> ParsedLesson:
+def _parse_lesson(lesson_type: str, text: str, places: list[tuple[str, str | None, str]]) -> ParsedLesson:
     lesson = ParsedLesson(lesson_type=lesson_type)
 
     m = _SUBGROUP.search(text)
@@ -179,8 +188,16 @@ def _parse_lesson(lesson_type: str, text: str, places: list[tuple[str, str | Non
         lesson.subgroup = int(m.group(1))
         text = text[: m.start()] + " " + text[m.end():]
 
+    rooms: list[tuple[str, str]] = []          # (аудитория, как записано)
+
+    def add_room(name: str, raw: str) -> None:
+        written = _ROOM_PREFIX.sub("", raw.strip(" .,()")).strip(" .,()")
+        rooms.append((name, written or name))
+
     def building_uk(m: re.Match) -> str:
-        lesson.building = f"УК{m.group(1)}"
+        lesson.building = f"УК{m.group('uk')}"
+        if m.group("room"):
+            add_room(m.group("room"), m.group("room"))
         return f" {_ROOM} "
 
     def building_named(m: re.Match) -> str:
@@ -188,27 +205,31 @@ def _parse_lesson(lesson_type: str, text: str, places: list[tuple[str, str | Non
         return f" {_ROOM} "
 
     text = _BUILDING_UK.sub(building_uk, text)
+    text = _EMPTY_UK.sub(" ", text)
     text = _BUILDING_NAMED.sub(building_named, text)
 
-    rooms: list[str] = []
-
     def room(m: re.Match) -> str:
+        raw = m.group(0)
         if m.group("ph") is not None:
-            name, building = places[int(m.group("ph"))]
-            rooms.append(name)
+            name, building, raw = places[int(m.group("ph"))]
+            add_room(name, raw)
             if building:
                 lesson.building = building
         elif m.group("named"):
-            rooms.append(m.group("named"))
+            add_room(m.group("named"), raw)
         elif m.group("aud"):
-            rooms.append(m.group("aud") + (m.group("audl") or ""))
+            add_room(m.group("aud") + (m.group("audl") or ""), raw)
         elif m.group("c"):
             letter = {"C": "С", "X": "Х"}.get(m.group("cl"), m.group("cl"))   # латиница → кириллица
-            rooms.append(f"{letter}-{m.group('c')}")
+            add_room(f"{letter}-{m.group('c')}{m.group('cll') or ''}", raw)
+        elif m.group("gl"):
+            add_room(f"ГЛ-{m.group('gl')}", raw)
+        elif m.group("dot"):
+            add_room(m.group("dot"), raw)
         elif m.group("num2"):
-            rooms.append(m.group("num2"))
+            add_room(m.group("num2"), raw)
         else:
-            rooms.append(m.group("num") + (m.group("numl") or ""))
+            add_room(m.group("num") + (m.group("numl") or ""), raw)
         return f" {_ROOM} "
 
     text = _ROOMS.sub(room, text)
@@ -224,7 +245,11 @@ def _parse_lesson(lesson_type: str, text: str, places: list[tuple[str, str | Non
     text, surnames = _extract_surnames(text)
     teachers += surnames
 
-    lesson.rooms = _unique(rooms)
+    written_of: dict[str, str] = {}
+    for name, written in rooms:
+        written_of.setdefault(name, written)
+    lesson.rooms = list(written_of)
+    lesson.rooms_raw = list(written_of.values())
     lesson.teachers = _unique(name for _, name in sorted(teachers))
     lesson.discipline = _discipline(text)
     return lesson
