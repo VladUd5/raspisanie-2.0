@@ -79,6 +79,13 @@ _TITLES = re.compile(
     rf")"
 )
 
+# Фамилия капсом после звания («проф. ПОДДУБНАЯ И.В.») приводится к обычному виду.
+# Без звания капсовое слово с «инициалами» — часть названия: «ПРОЦЕССОВ С.Х. ПРОИЗВОДСТВА».
+_CAPS_AFTER_TITLE = re.compile(
+    rf"((?<![{_L}])(?i:профессор|проф|доцент|доц|асс|ст\.?\s*преп|ст\.?\s*пр|преп)\.?\s*)"
+    rf"([{_UP}]{{3,}}(?:-[{_UP}]{{3,}})?)(?=\s+[{_UP}]\.\s*[{_UP}]\.)"
+)
+
 # --- 5. маркеры типа занятия --------------------------------------------------
 _END = rf"(?:\s?\.|(?![{_L}]))"        # точка или конец слова
 _MARKERS: list[tuple[str, str, bool]] = [          # (тип, шаблон, только в начале ячейки)
@@ -127,7 +134,6 @@ _FULL_NAME = re.compile(
     rf"(?:(?P<i1>[{_UP}])\s*[.,]+\s*(?P<i2>[{_UP}])\s*\.*"   # И.О. / И. О. / И.О / О,В.
     rf"|(?P<j1>[{_UP}])(?P<j2>[{_UP}])\s*\."                 # ИО.
     rf"|(?P<k1>[{_UP}])\s(?P<k2>[{_UP}])\.)"                 # И О.
-    rf"|(?<![{_L}])(?P<cs>[{_UP}]{{3,}}(?:-[{_UP}]{{3,}})?)\s+(?P<c1>[{_UP}])\.\s*(?P<c2>[{_UP}])\."  # ПОДДУБНАЯ И.В.
 )
 _CANDIDATE = re.compile(rf"(?<![{_L}])[А-ЯЁ][а-яё]{{2,}}(?:-[А-ЯЁ][а-яё]+)?(?![{_L}])")
 _FIRST_WORD = re.compile(rf"[{_L}A-Za-z]+")
@@ -151,6 +157,7 @@ def _clean(subject: str) -> ParsedCell:
         return ParsedCell(is_service=True)
 
     s = _HOURS.sub(" ", s)
+    s = _CAPS_AFTER_TITLE.sub(lambda m: m.group(1) + "-".join(p.capitalize() for p in m.group(2).split("-")), s)
     s = _TITLES.sub(" ", s)
     # после вырезания званий: «доц. Тарбаев…» — ячейка без дисциплины, а не оборванная
     truncated = bool(re.match(rf"\s*[а-яё]", s)) and not _MARKER.match(s.lstrip())
@@ -261,13 +268,8 @@ def _parse_lesson(lesson_type: str, type_raw: str | None, text: str, places: lis
     teachers: list[tuple[int, str]] = []
 
     def full_name(m: re.Match) -> str:
-        if m.group("cs"):
-            surname = "-".join(p.capitalize() for p in m.group("cs").split("-"))
-            i1, i2 = m.group("c1"), m.group("c2")
-        else:
-            surname = m.group("s")
-            i1, i2 = next((m.group(a), m.group(b)) for a, b in (("i1", "i2"), ("j1", "j2"), ("k1", "k2")) if m.group(a))
-        teachers.append((m.start(), f"{surname} {i1}.{i2}."))
+        i1, i2 = next((m.group(a), m.group(b)) for a, b in (("i1", "i2"), ("j1", "j2"), ("k1", "k2")) if m.group(a))
+        teachers.append((m.start(), f"{m.group('s')} {i1}.{i2}."))
         return _TEACHER + " " * (m.end() - m.start() - 1)   # длина сохраняется: позиции нужны ниже
 
     text = _FULL_NAME.sub(full_name, text)
