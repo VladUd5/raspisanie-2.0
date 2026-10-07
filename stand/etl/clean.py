@@ -55,36 +55,49 @@ _SERVICE = re.compile(
 
 # --- 3. аннотации часов и звания ----------------------------------------------
 _HOURS = re.compile(
-    r"\d+\s*лек\.?\s*\+\s*\d+\s*пр(?:\.?\s*з)?\.?"   # 4 лек. + 5 пр.
-    r"|\(\s*\d*\s*(?:лек|пр)(?:\.|\s*з|(?![а-яё]))[^)]*\)"  # (5 лек.), (пр.з.) — но не «(продвинутый уровень)»
+    r"\d+\s*лек\.?\s*\+\s*(?:[А-ЯЁ][а-яё]+\s*)?\d+\s*пр(?:\.?\s*з)?\.?"   # 4 лек. + 5 пр.; 5 лек. + Нерозя 5 пр.з.
+    r"|\(\s*\d*\s*(?:лек|пр|зан)(?:\.|\s*з|(?![а-яё]))[^)]*\)"  # (5 лек.), (пр.з.), (3 зан.) — но не «(продвинутый уровень)»
     r"|\(\s*\d+\s*\)"                              # (28)
     r"|(?<![А-ЯЁа-яё])с\s+\d{1,2}[.:]\d{2}",            # ЗАЧЕТ с 13.40
     re.I,
 )
+_UP, _LO = "А-ЯЁ", "а-яё"
+# дальше идёт фамилия: «Иванов…» или капсом «ИВАНОВ И.»
+_NAME_AHEAD = rf"(?=\s*(?:[{_UP}][{_LO}]|[{_UP}]{{2,}}\s+[{_UP}]\s*\.))"
+# Флага re.I нет: регистронезависимы только сами слова (?i:…), а проверка
+# «дальше фамилия» различает заглавные и строчные.
 _TITLES = re.compile(
-    rf"(?<![{_L}])(?:ст\.\s*преп\.?|ст\.\s*пр\.?|доцент(?![{_L}])|профессор(?![{_L}])"
-    rf"|доц(?:\.|(?![{_L}]))|проф(?:\.|(?![{_L}]))|преп\.|асс\.)",
-    re.I,
+    rf"(?<![{_L}])(?:"
+    rf"(?i:ст)\.?\s*(?i:преп)\.?"
+    rf"|(?i:ст)\.\s*(?i:пр)\.?"
+    rf"|(?i:ст)\s+(?i:пр)\.{_NAME_AHEAD}"                 # «ст пр.Боброва»
+    rf"|(?i:доцент)(?![{_L}])|(?i:доц)(?:\.|(?![{_L}]))"
+    rf"|(?i:преп)\.|(?i:асс)\."
+    rf"|(?i:профессор|проф)\.?{_NAME_AHEAD}"              # но не «в проф. образ.», «ПРОФ. ДЕЯТ.»
+    rf"|(?i:пр)\.(?=\s*[{_UP}][{_LO}]+\s*[{_UP}]\s*\.\s*[{_UP}])"   # «пр. Старцев А.С.» — преподаватель
+    rf")"
 )
 
 # --- 5. маркеры типа занятия --------------------------------------------------
 _END = rf"(?:\s?\.|(?![{_L}]))"        # точка или конец слова
-_MARKERS: list[tuple[str, str]] = [
-    ("практика", rf"(?i:пр)\s?\.?\s?(?i:з){_END}"),
-    ("лабораторная", rf"(?i:лаб)\s?\.?\s?(?i:з){_END}"),
-    ("лабораторная", rf"(?i:лб)\s?\.?\s?(?i:з){_END}"),
-    ("лекция", rf"(?i:лек){_END}"),
-    ("практика", r"(?i:пр)\s?\.(?![а-яё])"),          # но не «пр.ва»
-    ("лабораторная", r"(?i:лаб)\s?\.(?![а-яё])"),     # но не «Лаб.диагност.»
-    ("семинар", rf"(?i:сем){_END}"),
-    ("консультация", rf"(?i:конс){_END}"),
-    ("зачёт", rf"(?i:зач[её]т)(?![{_L}])"),
-    ("экзамен", rf"(?i:экзамен)(?![{_L}])"),
+_MARKERS: list[tuple[str, str, bool]] = [          # (тип, шаблон, только в начале ячейки)
+    ("практика", rf"(?i:пр)\s?\.?\s?(?i:з){_END}(?:\s?(?i:з)\.)?", False),   # и сдвоенное «пр.з. з.»
+    ("лабораторная", rf"(?i:лаб)\s?\.?\s?(?i:з){_END}", False),
+    ("лабораторная", rf"(?i:лб)\s?\.?\s?(?i:з){_END}", False),
+    ("лекция", rf"(?i:лекци[яи]|лекю)(?![{_L}])", False),                  # «лекция», опечатка «лекю»
+    ("лекция", rf"(?i:лек){_END}", False),
+    ("практика", r"(?i:пр)\s?\.(?![а-яё])", False),          # но не «пр.ва»
+    ("лабораторная", r"(?i:лаб)\s?\.(?![а-яё])", False),     # но не «Лаб.диагност.»
+    ("семинар", rf"(?i:сем){_END}", True),                   # «сем. посевов» в середине — не семинар
+    ("консультация", rf"(?i:конс){_END}", True),
+    ("зачёт", rf"(?i:зач[её]т)(?![{_L}])", False),
+    ("экзамен", rf"(?i:экзамен)(?![{_L}])", False),
+    ("лекция", r"ек\.", True),                               # оборванное «лек.»
+    ("практика", r"р\.\s?з\.", True),                        # оборванное «пр.з.»
 ]
-_ONLY_AT_START = {"семинар", "консультация"}   # «сем. посевов» в середине — не семинар
 _MARKER = re.compile(
     rf"(?<![{_L}A-Za-z0-9(.\-])(?:"
-    + "|".join(f"(?P<m{i}>{rx})" for i, (_, rx) in enumerate(_MARKERS))
+    + "|".join(f"(?P<m{i}>{rx})" for i, (_, rx, _) in enumerate(_MARKERS))
     + ")"
 )
 
@@ -141,7 +154,16 @@ def _clean(subject: str) -> ParsedCell:
     truncated = bool(re.match(rf"\s*[а-яё]", s)) and not _MARKER.match(s.lstrip())
     s, places = _extract_places(s)
 
-    lessons = [_parse_lesson(t, text, places) for t, text in _split(s)]
+    parts = _split(s)
+    lessons = [_parse_lesson(t, raw, text, places) for t, raw, text in parts]
+    # «лек. A (3 зан.), лек. B (3 зан.) доц. Ледяев Т.Б. 314»: преподаватель и аудитория
+    # в хвосте относятся ко всем перечисленным через запятую занятиям
+    for i in range(len(lessons) - 2, -1, -1):
+        cur, nxt = lessons[i], lessons[i + 1]
+        if (parts[i][2].rstrip().endswith(",") and not cur.teachers and not cur.rooms
+                and cur.lesson_type == nxt.lesson_type):
+            cur.teachers, cur.rooms, cur.rooms_raw = list(nxt.teachers), list(nxt.rooms), list(nxt.rooms_raw)
+            cur.building = nxt.building
     return ParsedCell(lessons=lessons, truncated=truncated)
 
 
@@ -155,33 +177,33 @@ def _extract_places(s: str) -> tuple[str, list[tuple[str, str | None, str]]]:
     return s, places
 
 
-def _marker_type(m: re.Match) -> str:
-    return next(_MARKERS[i][0] for i in range(len(_MARKERS)) if m.group(f"m{i}") is not None)
+def _marker(m: re.Match) -> tuple[str, bool]:
+    """(тип занятия, маркер допустим только в начале ячейки)."""
+    i = next(i for i in range(len(_MARKERS)) if m.group(f"m{i}") is not None)
+    return _MARKERS[i][0], _MARKERS[i][2]
 
 
-def _split(s: str) -> list[tuple[str, str]]:
-    matches = [
-        m for m in _MARKER.finditer(s)
-        if _marker_type(m) not in _ONLY_AT_START or not s[: m.start()].strip()
-    ]
+def _split(s: str) -> list[tuple[str, str | None, str]]:
+    matches = [m for m in _MARKER.finditer(s) if not _marker(m)[1] or not s[: m.start()].strip()]
     if not matches:
-        return [(UNKNOWN, s)]
+        return [(UNKNOWN, None, s)]
     parts = [
-        (_marker_type(m), s[m.end(): matches[i + 1].start() if i + 1 < len(matches) else len(s)])
+        (_marker(m)[0], m.group(0), s[m.end(): matches[i + 1].start() if i + 1 < len(matches) else len(s)])
         for i, m in enumerate(matches)
     ]
-    parts = [(t, text) for t, text in parts if re.search(rf"[{_L}\d{_PH}]", text)] or [(parts[-1][0], "")]
+    parts = [p for p in parts if re.search(rf"[{_L}\d{_PH}]", p[2])] or [(parts[-1][0], parts[-1][1], "")]
     prefix = s[: matches[0].start()]
     if re.search(rf"[{_L}]", prefix):
         if _FULL_NAME.search(prefix) or _ROOMS.search(prefix):
-            parts.insert(0, (UNKNOWN, prefix))          # перед маркером целое занятие
+            parts.insert(0, (UNKNOWN, None, prefix))          # перед маркером целое занятие
         else:
-            parts[0] = (parts[0][0], prefix + " " + parts[0][1])   # «2-я подгруппа лаб. з. …»
+            t, raw, text = parts[0]
+            parts[0] = (t, raw, prefix + " " + text)          # «2-я подгруппа лаб. з. …»
     return parts
 
 
-def _parse_lesson(lesson_type: str, text: str, places: list[tuple[str, str | None, str]]) -> ParsedLesson:
-    lesson = ParsedLesson(lesson_type=lesson_type)
+def _parse_lesson(lesson_type: str, type_raw: str | None, text: str, places: list[tuple[str, str | None, str]]) -> ParsedLesson:
+    lesson = ParsedLesson(lesson_type=lesson_type, type_raw=type_raw)
 
     m = _SUBGROUP.search(text)
     if m:

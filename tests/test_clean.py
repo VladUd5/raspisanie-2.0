@@ -74,3 +74,21 @@ def test_rooms_raw_keeps_written_form(raw, rooms, rooms_raw):
 def test_c_prefix_does_not_take_assistant_title_as_letter():
     # «С-208 асс.» — «а» здесь начало «асс.», а не литера аудитории
     assert clean("пр.з. Философия С-208 асс.Буняев М.Б.").lessons[0].rooms == ["С-208"]
+
+
+@pytest.mark.parametrize("raw, types_raw", [
+    ("лекю УПРАВЛЕНИЕ КАЧЕСТВОМ В ПТС доц.Тяпаев Т.Б. 341", ["лекю"]),
+    ("лек. ОБЩАЯ СЕЛЕКЦИЯ доц. Степанова Н.В. 903 пр.з. з. Философия познания Крайнов А.Л. 801", ["лек.", "пр.з. з."]),
+    ("ОБЩАЯ ФИЗИЧЕСКАЯ ПОДГОТОВКА физ. зал Пяткина", [None]),
+])
+def test_type_raw_is_marker_as_written(raw, types_raw):
+    assert [l.type_raw for l in clean(raw).lessons] == types_raw
+
+
+def test_cut_marker_r_z_at_start_is_practice():
+    assert clean("р.з.Иностранный язык лаб.ин-язИванова Л.М,Романова О.").lessons[0].lesson_type == "практика"
+
+
+def test_ek_inside_text_is_not_a_marker():
+    # «ек.» распознаётся только в начале ячейки
+    assert [l.lesson_type for l in clean("лек. Биотехнология в АПК ек. 324").lessons] == ["лекция"]

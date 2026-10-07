@@ -2214,6 +2214,237 @@
      }
     ]
    }
+  },
+  {
+   "id": "st-pr-without-dot",
+   "category": "ст пр. — должность",
+   "raw": "пр.з. Природно-хозяйственная оценка территории. ст пр.Боброва Ю.И. 535",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Природно-хозяйственная оценка территории",
+      "teachers": [
+       "Боброва Ю.И."
+      ],
+      "rooms": [
+       "535"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "pr-before-full-name",
+   "category": "пр. перед ФИО — должность",
+   "raw": "лек. ТЕХНОЛОГИИ ПРОИЗВОДСТВА пр. Старцев А.С. 131",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ТЕХНОЛОГИИ ПРОИЗВОДСТВА",
+      "teachers": [
+       "Старцев А.С."
+      ],
+      "rooms": [
+       "131"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "hours-zan",
+   "category": "пометка (3 зан.)",
+   "raw": "пр.з. Логистика Наянов (3 зан.) 316",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "практика",
+      "discipline": "Логистика",
+      "teachers": [
+       "Наянов"
+      ],
+      "rooms": [
+       "316"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "hours-with-practice-teacher",
+   "category": "пометка часов с преподавателем практик",
+   "raw": "лек. ЭКОНОМИЧЕСКАЯ КУЛЬТУРА доц. Васильева О.А. 5 лек. + Нерозя 5 пр.з. 234",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ЭКОНОМИЧЕСКАЯ КУЛЬТУРА",
+      "teachers": [
+       "Васильева О.А."
+      ],
+      "rooms": [
+       "234"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "shared-tail-after-enumeration",
+   "category": "общие преподаватель и аудитория у перечисленных занятий",
+   "raw": "лек. ПРОЕКТ. ДЕЯТЕЛЬНОСТЬ В МАРКЕТИНГЕ (3 зан.), лек. БИРЖЕВАЯ ТОРГОВЛЯ (3 зан.) доц. Ледяев Т.Б. 314",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ПРОЕКТ. ДЕЯТЕЛЬНОСТЬ В МАРКЕТИНГЕ",
+      "teachers": [
+       "Ледяев Т.Б."
+      ],
+      "rooms": [
+       "314"
+      ],
+      "building": null,
+      "subgroup": null
+     },
+     {
+      "lesson_type": "лекция",
+      "discipline": "БИРЖЕВАЯ ТОРГОВЛЯ",
+      "teachers": [
+       "Ледяев Т.Б."
+      ],
+      "rooms": [
+       "314"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "marker-lektsiya",
+   "category": "маркер «лекция»",
+   "raw": "лекция ЗЕМЛЕУСТРОИТЕЛЬНОЕ ПРОЕКТИРОВАНИЕ проф. Тарасенко П.В. ауд. 1003",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ЗЕМЛЕУСТРОИТЕЛЬНОЕ ПРОЕКТИРОВАНИЕ",
+      "teachers": [
+       "Тарасенко П.В."
+      ],
+      "rooms": [
+       "1003"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "marker-lekyu",
+   "category": "маркер «лекю»",
+   "raw": "лекю УПРАВЛЕНИЕ КАЧЕСТВОМ В ПТС доц.Тяпаев Т.Б. 341",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "УПРАВЛЕНИЕ КАЧЕСТВОМ В ПТС",
+      "teachers": [
+       "Тяпаев Т.Б."
+      ],
+      "rooms": [
+       "341"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "marker-ek-at-start",
+   "category": "оборванное «лек.» в начале",
+   "raw": "ек. КОМПЛЕКСНЫЙ АНАЛИЗ ХОЗЯЙСТВЕННОЙ ДЕЯТЕЛЬНОСТИ доц. Шарикова И.В. 232",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "КОМПЛЕКСНЫЙ АНАЛИЗ ХОЗЯЙСТВЕННОЙ ДЕЯТЕЛЬНОСТИ",
+      "teachers": [
+       "Шарикова И.В."
+      ],
+      "rooms": [
+       "232"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "marker-doubled-z",
+   "category": "сдвоенный маркер «пр.з. з.»",
+   "raw": "лек. ОБЩАЯ СЕЛЕКЦИЯ доц. Степанова Н.В. 903 пр.з. з. Философия познания Крайнов А.Л. 801",
+   "mode": "strict",
+   "expected": {
+    "service": false,
+    "lessons": [
+     {
+      "lesson_type": "лекция",
+      "discipline": "ОБЩАЯ СЕЛЕКЦИЯ",
+      "teachers": [
+       "Степанова Н.В."
+      ],
+      "rooms": [
+       "903"
+      ],
+      "building": null,
+      "subgroup": null
+     },
+     {
+      "lesson_type": "практика",
+      "discipline": "Философия познания",
+      "teachers": [
+       "Крайнов А.Л."
+      ],
+      "rooms": [
+       "801"
+      ],
+      "building": null,
+      "subgroup": null
+     }
+    ]
+   }
   }
  ]
 }
