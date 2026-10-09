@@ -188,3 +188,20 @@ def test_broken_dictionary_keeps_loaded_data(tmp_path, mini_snapshot_path):
     loaded, errors = ensure_loaded(conn, snaps, dictionary_dir=d)
     assert loaded == [] and "groups.csv" in errors[0][1]
     assert _count(conn, "SELECT COUNT(*) FROM snapshots") == 1
+
+
+def test_session_week_dates_and_superseded_versions(tmp_path):
+    def group(source, day, date):
+        return {"name": "Б-А-51", "source": source, "schedule": {"days": [{"name": day, "date": date, "lessons": [
+            {"time_from": "08:30", "time_to": "10:00", "subject": "лек. БОТАНИКА доц. Шевченко Е.Н. 324"}]}]}}
+    snap = tmp_path / "snap.json"
+    snap.write_text(__import__("json").dumps({"collected_at": "2026-10-09T12:00:00+03:00", "source_url": "", "buildings": [
+        {"name": "uk1", "institutes": [{"name": "institut-genetiki-i-agronomii", "forms": [
+            {"name": "zaochnaya-forma-obucheniya", "groups": [
+                group("1790000000_old.pdf", "понедельник", "2026-09-28"),
+                group("1790500000_new.pdf", "вторник", "2026-09-29"),
+                group("1790100000_next.pdf", "понедельник", "2026-10-05")]}]}]}]}, ensure_ascii=False), encoding="utf-8")
+    conn = connect(tmp_path / "db.sqlite")
+    load_snapshot(conn, snap, Dictionary())
+    rows = conn.execute("SELECT date, session_week, source FROM cells ORDER BY date").fetchall()
+    assert rows == [("2026-09-29", "2026-09-28", "1790500000_new.pdf"), ("2026-10-05", "2026-10-05", "1790100000_next.pdf")]

@@ -6,7 +6,7 @@
 тип недели, тип занятия, дисциплина) — это одно событие.
 
 Загруженность слота «день × время» у преподавателя и аудитории не больше одной
-пары в неделю: числитель + знаменатель как раз дают 1, а наложения (ошибки
+пары в неделю: верхняя + нижняя неделя как раз дают 1, а наложения (ошибки
 расписания, сессии заочников в «тот же» день) срезаются пропорционально.
 """
 import sqlite3
@@ -31,7 +31,8 @@ class Filters:
     days: tuple[str, ...] = ()
     week_types: tuple[str, ...] = ()
     lesson_types: tuple[str, ...] = ()
-    full_weeks: bool = False   # числитель/знаменатель и разрезанные ячейки — полной парой
+    full_weeks: bool = False   # занятия верхней/нижней недели и разрезанные ячейки — полной парой
+    session_weeks: tuple[str, ...] = ()   # недели сессии заочки (понедельник); недатированные занятия не трогает
 
 
 # --- чтение -------------------------------------------------------------------
@@ -49,7 +50,8 @@ def lessons_frame(conn: sqlite3.Connection, snapshot_id: int) -> pd.DataFrame:
         """SELECT l.id AS lesson_id, l.cell_id, c.building AS cell_building, c.institute, c.study_form,
                   c.group_name, c.day, c.day_idx, c.time_from, c.time_to, c.duration_h, c.week_type,
                   l.week_factor, l.lesson_type, COALESCE(d.name, '—') AS discipline, l.subgroup,
-                  l.building AS lesson_building, c.subject_raw
+                  l.building AS lesson_building, c.subject_raw,
+                  COALESCE(c.date, '') AS date, COALESCE(c.session_week, '') AS session_week
            FROM lessons l JOIN cells c ON c.id = l.cell_id
            LEFT JOIN disciplines d ON d.id = l.discipline_id
            WHERE l.snapshot_id = ?""", conn, params=(snapshot_id,))
@@ -150,6 +152,9 @@ def apply_filters(lessons: pd.DataFrame, f: Filters) -> pd.DataFrame:
                         ("week_type", f.week_types), ("lesson_type", f.lesson_types)]:
         if values:
             mask &= lessons[col].isin(values)
+    if f.session_weeks:
+        # неделя сессии отбирает только датированные занятия заочки, остальные не трогает
+        mask &= (lessons["session_week"] == "") | lessons["session_week"].isin(f.session_weeks)
     out = lessons[mask].copy()
     out["hours"] = out["duration_h"] * (1.0 if f.full_weeks else out["week_factor"])
     out["per_week"] = 1.0 if f.full_weeks else out["week_factor"]
@@ -322,7 +327,7 @@ def group_options(names) -> list[str]:
 
 def group_load(lessons: pd.DataFrame) -> pd.DataFrame:
     """Пары и часы в неделю у каждой группы. Слот «день × время» — не больше одной пары:
-    параллельные подгруппы и числитель + знаменатель вместе дают одну пару."""
+    параллельные подгруппы и верхняя + нижняя неделя вместе дают одну пару."""
     cols = ["group_name", "institute", "study_form", "pairs", "hours", "disciplines"]
     if lessons.empty:
         return pd.DataFrame(columns=cols)
@@ -371,7 +376,7 @@ def _slot_pivot(values: pd.Series, slots: list[tuple[int, str]], fill: float) ->
 
 
 def peak_hours(lessons: pd.DataFrame) -> pd.DataFrame:
-    """Сколько групп в среднем занимается в каждый слот недели (числитель и знаменатель —
+    """Сколько групп в среднем занимается в каждый слот недели (верхняя и нижняя неделя —
     по половине; параллельные подгруппы одной группы — одна пара)."""
     if lessons.empty:
         return pd.DataFrame()
@@ -400,8 +405,8 @@ def room_fund_occupancy(lessons: pd.DataFrame, rooms: pd.DataFrame) -> pd.DataFr
 
 
 def free_rooms(lessons: pd.DataFrame, rooms: pd.DataFrame, building: str) -> pd.DataFrame:
-    """Сколько аудиторий корпуса свободно в каждый слот недели (занятость по числителю
-    или знаменателю — половина аудитории)."""
+    """Сколько аудиторий корпуса свободно в каждый слот недели (занятость только по верхней
+    или только по нижней неделе — половина аудитории)."""
     df = _rooms_scope(lessons, rooms, "all")
     df = df[df["room_building"] == building]
     if df.empty:

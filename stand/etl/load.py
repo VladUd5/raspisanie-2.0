@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from etl.clean import UNKNOWN, clean
-from etl.flatten import flatten
+from etl.flatten import drop_superseded, flatten
 from etl.canon import UNVERIFIED, Canonizer, Resolved
 from etl.dictionary import DICTIONARY_DIR, Dictionary, fingerprint, load_dictionary
 from etl.normalize import is_surname_only
@@ -15,7 +15,7 @@ from etl.variants import NOT_DISCIPLINE, classify
 
 # Меняется при несовместимой правке схемы: стенд пересоздаёт БД, а снапшоты
 # из data/snapshots перечитывает ensure_loaded на следующем запуске.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS cells (
     id INTEGER PRIMARY KEY, snapshot_id INTEGER REFERENCES snapshots(id) ON DELETE CASCADE,
     building TEXT, institute TEXT, study_form TEXT, group_name TEXT,
     day TEXT, day_idx INTEGER, time_from TEXT, time_to TEXT, duration_h REAL,
-    week_type TEXT, subject_raw TEXT, is_service INTEGER, truncated INTEGER, lessons_in_cell INTEGER);
+    week_type TEXT, subject_raw TEXT, is_service INTEGER, truncated INTEGER, lessons_in_cell INTEGER,
+    date TEXT, session_week TEXT, source TEXT);
 CREATE TABLE IF NOT EXISTS disciplines (
     id INTEGER PRIMARY KEY, snapshot_id INTEGER REFERENCES snapshots(id) ON DELETE CASCADE,
     name TEXT, UNIQUE (snapshot_id, name));
@@ -108,7 +109,7 @@ def load_snapshot(conn: sqlite3.Connection, path: Path, dictionary: Dictionary |
     path = Path(path)
     dictionary = load_dictionary() if dictionary is None else dictionary
     snap = read_snapshot(path)
-    cells = flatten(snap["buildings"])
+    cells, _ = drop_superseded(flatten(snap["buildings"]))   # устаревшие версии недели заочки
     parsed = [clean(c.subject_raw) for c in cells]
     canon = Canonizer(dictionary, [l for p in parsed for l in p.lessons])
     fuzzy_aliases = {m.alias for m in canon.disc_merges}    # склеено правилом с score < 100, не словарём
@@ -151,11 +152,13 @@ def load_snapshot(conn: sqlite3.Connection, path: Path, dictionary: Dictionary |
             group = canon.group(cell.group_name)
             cell_id = conn.execute(
                 "INSERT INTO cells (snapshot_id, building, institute, study_form, group_name, day, day_idx,"
-                " time_from, time_to, duration_h, week_type, subject_raw, is_service, truncated, lessons_in_cell)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " time_from, time_to, duration_h, week_type, subject_raw, is_service, truncated, lessons_in_cell,"
+                " date, session_week, source)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (snap_id, cell.building, cell.institute, cell.study_form, group.canonical, cell.day,
                  cell.day_idx, cell.time_from, cell.time_to, cell.duration_h, cell.week_type,
-                 cell.subject_raw, int(p.is_service), int(p.truncated), len(p.lessons)),
+                 cell.subject_raw, int(p.is_service), int(p.truncated), len(p.lessons),
+                 cell.date, cell.session_week, cell.source),
             ).lastrowid
             n = len(p.lessons)
             base = 1.0 if cell.week_type == "both" else 0.5

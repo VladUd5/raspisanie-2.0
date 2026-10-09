@@ -273,3 +273,12 @@ def test_free_rooms_grid(frames):
     assert free.loc["понедельник"].tolist() == [1.0, 0.5]   # 422 занята; 422 — по числителю, 314 — вся пара
     assert free.loc["вторник"].tolist() == [1.0, 2.0]
     assert free.loc["среда"].tolist() == [2.0, 2.0]
+
+
+def test_session_week_filter_keeps_undated_lessons():
+    lessons = pd.DataFrame({"cell_building": ["УК1"] * 3, "institute": ["И"] * 3, "study_form": ["Заочная", "Заочная", "Очная"],
+                            "group_name": ["А", "А", "Б"], "day": ["понедельник"] * 3, "week_type": ["both"] * 3,
+                            "lesson_type": ["лекция"] * 3, "duration_h": [1.5] * 3, "week_factor": [1.0] * 3,
+                            "session_week": ["2026-09-28", "2026-10-05", ""]})
+    out = q.apply_filters(lessons, q.Filters(session_weeks=("2026-10-05",)))
+    assert out["session_week"].tolist() == ["2026-10-05", ""]

@@ -13,7 +13,9 @@ FORMS = {
     "zaochnaya-forma-obucheniya": "Заочная",
     "ochno-zaochnaya-forma-obucheniya": "Очно-заочная",
 }
-WEEK_TYPES = {"both": "обе недели", "numerator": "числитель", "denominator": "знаменатель"}
+# Пара делится пополам: верхняя половина ячейки — верхняя неделя, нижняя — нижняя.
+# В JSON парсера они называются numerator/denominator (числитель/знаменатель).
+WEEK_TYPES = {"both": "обе недели", "numerator": "верхняя неделя", "denominator": "нижняя неделя"}
 DAYS = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"]
 
 
@@ -33,7 +35,7 @@ COLUMNS = {
     "teacher": "Преподаватель", "hours": "Часов в неделю", "lessons": "Занятий в неделю",
     "disciplines": "Дисциплин", "groups": "Групп", "rooms": "Аудитории", "room_label": "Аудитория",
     "room_building": "Корпус аудитории", "room": "Номер", "discipline": "Дисциплина", "teachers": "Преподаватели",
-    "lesson_type": "Тип занятия", "day": "День", "time_from": "Начало", "time_to": "Конец",
+    "lesson_type": "Тип занятия", "day": "День", "date": "Дата", "session_week": "Неделя сессии", "time_from": "Начало", "time_to": "Конец",
     "week_type": "Неделя", "institute": "Институт", "study_form": "Форма обучения", "group_name": "Группа",
     "cell_building": "Корпус", "subgroup": "Подгруппа", "subject_raw": "Исходный текст ячейки",
     "lessons_in_cell": "Занятий в ячейке", "kind": "Что", "alias": "Вариант написания",
