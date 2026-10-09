@@ -32,7 +32,7 @@ class Filters:
     week_types: tuple[str, ...] = ()
     lesson_types: tuple[str, ...] = ()
     full_weeks: bool = False   # занятия верхней/нижней недели и разрезанные ячейки — полной парой
-    session_weeks: tuple[str, ...] = ()   # недели сессии заочки (понедельник); недатированные занятия не трогает
+    session_weeks: tuple[str, ...] = ()   # недели сессии заочки (понедельник)
 
 
 # --- чтение -------------------------------------------------------------------
@@ -153,8 +153,11 @@ def apply_filters(lessons: pd.DataFrame, f: Filters) -> pd.DataFrame:
         if values:
             mask &= lessons[col].isin(values)
     if f.session_weeks:
-        # неделя сессии отбирает только датированные занятия заочки, остальные не трогает
-        mask &= (lessons["session_week"] == "") | lessons["session_week"].isin(f.session_weeks)
+        # неделя сессии отбирает занятия форм обучения с датами (заочка); у таких форм
+        # недатированные занятия — другая, неизвестная неделя, они не показываются
+        dated_forms = set(lessons.loc[lessons["session_week"] != "", "study_form"])
+        undated = lessons["session_week"] == ""
+        mask &= (undated & ~lessons["study_form"].isin(dated_forms)) | lessons["session_week"].isin(f.session_weeks)
     out = lessons[mask].copy()
     out["hours"] = out["duration_h"] * (1.0 if f.full_weeks else out["week_factor"])
     out["per_week"] = 1.0 if f.full_weeks else out["week_factor"]
@@ -298,7 +301,7 @@ def group_grid(lessons: pd.DataFrame, teachers: pd.DataFrame, rooms: pd.DataFram
         return pd.DataFrame()
     tt = teachers.groupby("lesson_id")["teacher"].apply(", ".join).rename("teachers")
     df = df.merge(tt, on="lesson_id", how="left").merge(_room_text(rooms), on="lesson_id", how="left")
-    week = {"numerator": " [числ.]", "denominator": " [знам.]", "both": ""}
+    week = {"numerator": " [верх.]", "denominator": " [нижн.]", "both": ""}
 
     def text(r) -> str:
         parts = [f"{r.lesson_type}: {r.discipline}{week[r.week_type]}"]

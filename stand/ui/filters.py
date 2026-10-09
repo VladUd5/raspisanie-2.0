@@ -55,8 +55,8 @@ def _session_week(sub: pd.DataFrame) -> str | None:
         st.session_state["f_session"] = weeks[0]
     choice = st.sidebar.selectbox("Неделя сессии (заочники)", options, key="f_session",
                                   format_func=lambda w: w if w == ALL_WEEKS else week_label(w),
-                                  help="Заочное расписание выкладывается по неделям сессии. "
-                                       "Занятия без даты в таблице показываются при любой неделе.")
+                                  help="Заочное расписание выкладывается по неделям сессии. Занятия из "
+                                       "файлов без дат видны только в режиме «все недели вместе».")
     return None if choice == ALL_WEEKS else choice
 
 
@@ -96,8 +96,8 @@ def sidebar() -> Context:
                              help="Занятие только по верхней или только по нижней неделе идёт раз в две недели "
                                   "и считается как 0.5 пары.")
     st.sidebar.button("Сбросить фильтры", on_click=_reset)
-    st.sidebar.caption("По умолчанию — очная форма: у заочной и очно-заочной расписание сессионное, "
-                       "и «недельная» нагрузка для них условна.")
+    st.sidebar.caption("По умолчанию — очная форма: её неделю нельзя смешивать с расписанием заочников. "
+                       "У заочной формы нагрузка считается внутри выбранной недели сессии.")
     return Context(sid, Filters(
         buildings=tuple(chosen["f_buildings"]), institutes=tuple(chosen["f_institutes"]),
         study_forms=tuple(chosen["f_forms"]), groups=tuple(chosen["f_groups"]), days=tuple(days),

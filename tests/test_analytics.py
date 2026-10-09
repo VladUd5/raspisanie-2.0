@@ -61,7 +61,7 @@ def test_room_discipline_matrix(frames):
     lessons, _, rooms, *_ = frames
     m = q.room_discipline_matrix(q.apply_filters(lessons, q.Filters()), rooms)
     assert m.loc["УК1 · 422", "История России"] == pytest.approx(2.25)
-    # Пн 10:10: Б-БИ-101 каждую неделю + Б-Э-101 по знаменателю («Иностанный» склеен).
+    # Пн 10:10: Б-БИ-101 каждую неделю + Б-Э-101 по нижней неделе («Иностанный» склеен).
     # 1.0 + 0.5 > одной пары в слоте → срезается до 1 пары = 1.5 ч
     assert m.loc["УК1 · 314", "Иностранный язык"] == pytest.approx(1.5)
 
@@ -131,7 +131,7 @@ def test_group_grid_and_daily_load(frames):
     lessons, teachers, rooms, *_ = frames
     f = q.apply_filters(lessons, q.Filters())
     grid = q.group_grid(f, teachers, rooms, "Б-Э-101")
-    assert "[числ.]" in grid.loc["10:10", "понедельник"] and "[знам.]" in grid.loc["10:10", "понедельник"]
+    assert "[верх.]" in grid.loc["10:10", "понедельник"] and "[нижн.]" in grid.loc["10:10", "понедельник"]
     daily = q.group_daily_load(f, "Б-Э-101").set_index("day")
     assert daily.loc["понедельник", "hours"] == pytest.approx(3.0)
 
@@ -217,7 +217,7 @@ def test_group_load_counts_pairs_per_week(frames):
     lessons, *_ = frames
     load = q.group_load(q.apply_filters(lessons, q.Filters()))
     pairs = dict(zip(load["group_name"], load["pairs"]))
-    # числитель + знаменатель в одном слоте = 1 пара; разрезанная ячейка = 0.5 + 0.5
+    # верхняя + нижняя неделя в одном слоте = 1 пара; разрезанная ячейка = 0.5 + 0.5
     assert pairs == {"Б-Э-101": 4.0, "Б-БИ-101": 2.0, "бэ": 2.0}
     assert list(load.columns[:3]) == ["group_name", "institute", "study_form"]
 
@@ -251,7 +251,7 @@ def test_peak_hours_counts_groups_per_slot(frames):
     lessons, *_ = frames
     p = q.peak_hours(q.apply_filters(lessons, q.Filters()))
     assert list(p.index) == ["понедельник", "вторник", "среда"] and list(p.columns) == ["08:30", "10:10"]
-    # числитель + знаменатель у одной группы — одна пара; поточная лекция — по паре у каждой группы
+    # верхняя + нижняя неделя у одной группы — одна пара; поточная лекция — по паре у каждой группы
     assert p.loc["понедельник"].tolist() == [2.0, 2.0]
     assert p.loc["вторник"].tolist() == [1.0, 1.0]
     assert p.loc["среда"].tolist() == [1.0, 1.0]
@@ -275,10 +275,14 @@ def test_free_rooms_grid(frames):
     assert free.loc["среда"].tolist() == [2.0, 2.0]
 
 
-def test_session_week_filter_keeps_undated_lessons():
-    lessons = pd.DataFrame({"cell_building": ["УК1"] * 3, "institute": ["И"] * 3, "study_form": ["Заочная", "Заочная", "Очная"],
-                            "group_name": ["А", "А", "Б"], "day": ["понедельник"] * 3, "week_type": ["both"] * 3,
-                            "lesson_type": ["лекция"] * 3, "duration_h": [1.5] * 3, "week_factor": [1.0] * 3,
-                            "session_week": ["2026-09-28", "2026-10-05", ""]})
+def test_session_week_filter():
+    """Неделя сессии отбирает датированные занятия заочки; недатированные заочные (неизвестная
+    неделя) скрыты, другие формы обучения не затронуты."""
+    lessons = pd.DataFrame({"cell_building": ["УК1"] * 4, "institute": ["И"] * 4,
+                            "study_form": ["Заочная", "Заочная", "Заочная", "Очная"],
+                            "group_name": ["А", "А", "А", "Б"], "day": ["понедельник"] * 4, "week_type": ["both"] * 4,
+                            "lesson_type": ["лекция"] * 4, "duration_h": [1.5] * 4, "week_factor": [1.0] * 4,
+                            "session_week": ["2026-09-28", "2026-10-05", "", ""]})
     out = q.apply_filters(lessons, q.Filters(session_weeks=("2026-10-05",)))
-    assert out["session_week"].tolist() == ["2026-10-05", ""]
+    assert list(zip(out["study_form"], out["session_week"])) == [("Заочная", "2026-10-05"), ("Очная", "")]
+    assert len(q.apply_filters(lessons, q.Filters())) == 4
