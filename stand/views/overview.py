@@ -1,3 +1,5 @@
+import sqlite3
+
 import streamlit as st
 
 from analytics import queries as q
@@ -16,6 +18,7 @@ with st.container(border=True):
     st.markdown(f"**Сбор.** Парсер `{parser_url()}` обходит `{schedule_url()}`, скачивает PDF и отдаёт JSON. "
                 "Полный обход занимает несколько минут.")
     if st.button("Собрать данные с сайта", type="primary"):
+        path = None
         try:
             with st.status("Парсер обходит сайт вуза…", expanded=True) as status:
                 path = collect(parser_url(), schedule_url(), snapshots_dir(), collect_timeout_s())
@@ -37,6 +40,12 @@ with st.container(border=True):
         except DictionaryError as e:
             st.error(f"Данные собраны, но словарь написаний не читается: {e}. Снапшот сохранён в "
                      "data/snapshots — после исправления словаря он загрузится при следующем запуске стенда.")
+        except (OSError, ValueError, KeyError, TypeError, AttributeError, sqlite3.Error) as e:
+            if path is None:
+                st.error(f"Сбор не удался: {e}. Ранее собранные снапшоты по-прежнему доступны.")
+            else:
+                st.error(f"Данные собраны и сохранены в `data/snapshots/{path.name}`, но в базу не загрузились: "
+                         f"{e}. Ранее собранные снапшоты по-прежнему доступны.")
 
 ctx = filters.current()
 if filters.need_data(ctx):

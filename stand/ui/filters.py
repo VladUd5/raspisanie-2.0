@@ -30,7 +30,7 @@ DEFAULT_FORM = "Очная"
 
 def _reset() -> None:
     """Вернуть фильтры к умолчанию (очная форма, остальное — «все»)."""
-    for k in [*KEYS, "f_full"]:
+    for k in [*KEYS, "f_full", "f_hours"]:
         st.session_state.pop(k, None)
 
 
@@ -57,7 +57,11 @@ def _session_week(sub: pd.DataFrame) -> str | None:
                                   format_func=lambda w: w if w == ALL_WEEKS else week_label(w),
                                   help="Заочное расписание выкладывается по неделям сессии. Занятия из "
                                        "файлов без дат видны только в режиме «все недели вместе».")
-    return None if choice == ALL_WEEKS else choice
+    if choice == ALL_WEEKS:
+        st.sidebar.warning("Недели сессии сложены: нагрузка заочников — сумма за все недели, "
+                           "пиковые часы и аудиторный фонд — в среднем за неделю.")
+        return None
+    return choice
 
 
 def sidebar() -> Context:
@@ -95,13 +99,17 @@ def sidebar() -> Context:
     full = st.sidebar.toggle("Верхнюю/нижнюю неделю считать полной парой", key="f_full",
                              help="Занятие только по верхней или только по нижней неделе идёт раз в две недели "
                                   "и считается как 0.5 пары.")
+    academic = st.sidebar.radio("Часы", [True, False], key="f_hours", horizontal=True,
+                                format_func=lambda a: "академические" if a else "астрономические",
+                                help="Академический час — 45 минут, пара = 2 ак. часа: так считают учебную "
+                                     "нагрузку. Астрономический — 60 минут, пара = 1,5 часа.")
     st.sidebar.button("Сбросить фильтры", on_click=_reset)
     st.sidebar.caption("По умолчанию — очная форма: её неделю нельзя смешивать с расписанием заочников. "
                        "У заочной формы нагрузка считается внутри выбранной недели сессии.")
     return Context(sid, Filters(
         buildings=tuple(chosen["f_buildings"]), institutes=tuple(chosen["f_institutes"]),
         study_forms=tuple(chosen["f_forms"]), groups=tuple(chosen["f_groups"]), days=tuple(days),
-        week_types=tuple(weeks), lesson_types=tuple(types), full_weeks=full,
+        week_types=tuple(weeks), lesson_types=tuple(types), full_weeks=full, academic_hours=academic,
         session_weeks=(session,) if session else ()))
 
 

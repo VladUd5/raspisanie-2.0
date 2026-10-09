@@ -74,6 +74,45 @@ def test_ensure_loaded_loads_only_new(tmp_path, mini_snapshot_path):
     assert ensure_loaded(conn, snaps) == ([], [])
 
 
+def test_ensure_loaded_drops_deleted_files(tmp_path, mini_snapshot_path):
+    snaps = tmp_path / "snapshots"
+    snaps.mkdir()
+    for name in ["a.json", "b.json"]:
+        shutil.copy(mini_snapshot_path, snaps / name)
+    conn = connect(tmp_path / "t.db")
+    ensure_loaded(conn, snaps)
+    (snaps / "a.json").unlink()
+    assert ensure_loaded(conn, snaps) == ([], [])
+    assert [r[0] for r in conn.execute("SELECT file_name FROM snapshots")] == ["b.json"]
+    assert _count(conn, "SELECT COUNT(DISTINCT snapshot_id) FROM lessons") == 1
+
+
+def test_concurrent_tabs_load_each_snapshot_once(tmp_path, mini_snapshot_path):
+    """Две вкладки одновременно видят новые снапшоты: вторая ждёт первую, а не падает
+    с «database is locked», и ничего не загружается дважды."""
+    from concurrent.futures import ThreadPoolExecutor
+    snaps = tmp_path / "snapshots"
+    snaps.mkdir()
+    for i in range(3):
+        shutil.copy(mini_snapshot_path, snaps / f"{i}.json")
+    connect(tmp_path / "t.db").close()
+
+    def tab(_):
+        conn = connect(tmp_path / "t.db")
+        try:
+            return ensure_loaded(conn, snaps)
+        finally:
+            conn.close()
+
+    with ThreadPoolExecutor(4) as pool:
+        results = list(pool.map(tab, range(4)))
+    assert all(errors == [] for _, errors in results)
+    assert sum(len(loaded) for loaded, _ in results) == 3
+    conn = connect(tmp_path / "t.db")
+    assert _count(conn, "SELECT COUNT(*) FROM snapshots") == 3
+    assert _count(conn, "SELECT COUNT(DISTINCT snapshot_id) FROM lessons") == 3
+
+
 def test_broken_snapshot_is_skipped_with_error(tmp_path, mini_snapshot_path):
     snaps = tmp_path / "snapshots"
     snaps.mkdir()

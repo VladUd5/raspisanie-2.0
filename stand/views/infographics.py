@@ -3,7 +3,7 @@ import streamlit as st
 
 from analytics import queries as q
 from charts.common import bar_h, heatmap, histogram
-from labels import ru
+from labels import HOURS, ru
 from ui import filters, theme
 
 st.title("Инфографика")
@@ -13,6 +13,8 @@ ctx = filters.current()
 if filters.need_data(ctx):
     st.stop()
 lessons, teachers, rooms = filters.filtered(ctx)
+ac = ctx.filters.academic_hours   # в каких часах считать (фильтр «Часы»)
+pair_h = 2.0 if ac else 1.5   # шаг гистограммы часов — одна пара
 if lessons.empty:
     st.info("В выборке нет занятий.")
     st.stop()
@@ -27,11 +29,11 @@ WHAT = {"teacher": "Преподаватели", "group": "Группы", "room"
 what = st.segmented_control("Что", list(WHAT), format_func=WHAT.get, default="teacher", required=True,
                             key="dist_what")
 if what == "teacher":
-    values, step, unit, noun = q.teacher_load(lessons, teachers, rooms)["hours"], 1.5, "часов в неделю", "преподавателей"
+    values, step, unit, noun = q.teacher_load(lessons, teachers, rooms)["hours"], pair_h, f"{HOURS[ac]} в неделю", "преподавателей"
 elif what == "group":
     values, step, unit, noun = q.group_load(lessons)["pairs"], 1.0, "пар в неделю", "групп"
 else:
-    values, step, unit, noun = q.room_load(lessons, rooms)["hours"], 1.5, "часов в неделю", "аудиторий"
+    values, step, unit, noun = q.room_load(lessons, rooms)["hours"], pair_h, f"{HOURS[ac]} в неделю", "аудиторий"
 bins, stats = q.distribution(values, step)
 if not stats:
     st.info("Нечего показать: в выборке нет таких данных.")

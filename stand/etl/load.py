@@ -3,6 +3,7 @@
 import json
 import re
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -73,9 +74,14 @@ CREATE INDEX IF NOT EXISTS ix_lesson_rooms_lesson ON lesson_rooms(lesson_id);
 """
 
 
+# Сколько ждать, пока другая вкладка допишет снапшот в БД (по умолчанию в sqlite3 — 5 с,
+# а перечитывание всех снапшотов после правки словаря идёт дольше).
+BUSY_TIMEOUT_S = 120
+
+
 def connect(db_path: Path | str) -> sqlite3.Connection:
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=BUSY_TIMEOUT_S)
     if conn.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
         conn.execute("PRAGMA foreign_keys = OFF")
         for (name,) in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
@@ -85,6 +91,19 @@ def connect(db_path: Path | str) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
     return conn
+
+
+@contextmanager
+def _write_lock(conn: sqlite3.Connection):
+    """Транзакция, которая сразу берёт блокировку записи: две вкладки стенда, одновременно
+    увидевшие новый снапшот, загружают его по очереди, а не наперегонки."""
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        yield
+    except BaseException:
+        conn.rollback()
+        raise
+    conn.commit()
 
 
 def suspicious_group(name: str) -> bool:
@@ -106,7 +125,12 @@ def read_snapshot(path: Path) -> dict:
 
 
 def load_snapshot(conn: sqlite3.Connection, path: Path, dictionary: Dictionary | None = None) -> int:
-    path = Path(path)
+    with _write_lock(conn):
+        return _insert_snapshot(conn, Path(path), dictionary)
+
+
+def _insert_snapshot(conn: sqlite3.Connection, path: Path, dictionary: Dictionary | None) -> int:
+    """Разбор и запись снапшота внутри уже открытой транзакции."""
     dictionary = load_dictionary() if dictionary is None else dictionary
     snap = read_snapshot(path)
     cells, _ = drop_superseded(flatten(snap["buildings"]))   # устаревшие версии недели заочки
@@ -122,140 +146,157 @@ def load_snapshot(conn: sqlite3.Connection, path: Path, dictionary: Dictionary |
         else:
             tally[key] = [r, 1]
 
-    with conn:
-        conn.execute("DELETE FROM snapshots WHERE file_name = ?", (path.name,))
-        snap_id = conn.execute(
-            "INSERT INTO snapshots (collected_at, source_url, file_name, groups_cnt, cells_cnt,"
-            " lessons_cnt, service_cnt) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (snap["collected_at"], snap["source_url"], path.name,
-             len({(c.building, c.institute, c.study_form, canon.group(c.group_name).canonical) for c in cells}),
-             len(cells), sum(len(p.lessons) for p in parsed), sum(p.is_service for p in parsed)),
+    conn.execute("DELETE FROM snapshots WHERE file_name = ?", (path.name,))
+    snap_id = conn.execute(
+        "INSERT INTO snapshots (collected_at, source_url, file_name, groups_cnt, cells_cnt,"
+        " lessons_cnt, service_cnt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (snap["collected_at"], snap["source_url"], path.name,
+         len({(c.building, c.institute, c.study_form, canon.group(c.group_name).canonical) for c in cells}),
+         len(cells), sum(len(p.lessons) for p in parsed), sum(p.is_service for p in parsed)),
+    ).lastrowid
+
+    ids: dict[tuple, int] = {}
+
+    def get_id(table: str, key: tuple, insert_sql: str, values: tuple) -> int:
+        if (table, key) not in ids:
+            ids[(table, key)] = conn.execute(insert_sql, values).lastrowid
+        return ids[(table, key)]
+
+    def discipline_id(alias: str, canonical: str) -> int:
+        did = get_id("d", (canonical,), "INSERT INTO disciplines (snapshot_id, name) VALUES (?, ?)",
+                     (snap_id, canonical))
+        if ("a", (alias,)) not in ids:
+            conn.execute("INSERT INTO discipline_aliases (snapshot_id, alias, discipline_id) VALUES (?, ?, ?)",
+                         (snap_id, alias, did))
+            ids[("a", (alias,))] = did
+        return did
+
+    for cell, p in zip(cells, parsed):
+        group = canon.group(cell.group_name)
+        cell_id = conn.execute(
+            "INSERT INTO cells (snapshot_id, building, institute, study_form, group_name, day, day_idx,"
+            " time_from, time_to, duration_h, week_type, subject_raw, is_service, truncated, lessons_in_cell,"
+            " date, session_week, source)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (snap_id, cell.building, cell.institute, cell.study_form, group.canonical, cell.day,
+             cell.day_idx, cell.time_from, cell.time_to, cell.duration_h, cell.week_type,
+             cell.subject_raw, int(p.is_service), int(p.truncated), len(p.lessons),
+             cell.date, cell.session_week, cell.source),
         ).lastrowid
-
-        ids: dict[tuple, int] = {}
-
-        def get_id(table: str, key: tuple, insert_sql: str, values: tuple) -> int:
-            if (table, key) not in ids:
-                ids[(table, key)] = conn.execute(insert_sql, values).lastrowid
-            return ids[(table, key)]
-
-        def discipline_id(alias: str, canonical: str) -> int:
-            did = get_id("d", (canonical,), "INSERT INTO disciplines (snapshot_id, name) VALUES (?, ?)",
-                         (snap_id, canonical))
-            if ("a", (alias,)) not in ids:
-                conn.execute("INSERT INTO discipline_aliases (snapshot_id, alias, discipline_id) VALUES (?, ?, ?)",
-                             (snap_id, alias, did))
-                ids[("a", (alias,))] = did
-            return did
-
-        for cell, p in zip(cells, parsed):
-            group = canon.group(cell.group_name)
-            cell_id = conn.execute(
-                "INSERT INTO cells (snapshot_id, building, institute, study_form, group_name, day, day_idx,"
-                " time_from, time_to, duration_h, week_type, subject_raw, is_service, truncated, lessons_in_cell,"
-                " date, session_week, source)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (snap_id, cell.building, cell.institute, cell.study_form, group.canonical, cell.day,
-                 cell.day_idx, cell.time_from, cell.time_to, cell.duration_h, cell.week_type,
-                 cell.subject_raw, int(p.is_service), int(p.truncated), len(p.lessons),
-                 cell.date, cell.session_week, cell.source),
+        n = len(p.lessons)
+        base = 1.0 if cell.week_type == "both" else 0.5
+        for part_idx, lesson in enumerate(p.lessons):
+            note("group", cell.group_name, group, group.canonical)
+            lt = canon.lesson_type(lesson.type_raw, lesson.lesson_type)
+            if lesson.type_raw:
+                note("lesson_type", lesson.type_raw, lt, lt.canonical)
+            d = canon.discipline(lesson.discipline) if lesson.discipline else None
+            if d:
+                note("discipline", lesson.discipline, d, d.canonical or NOT_DISCIPLINE)
+            disc = d.canonical if d else None
+            building = lesson.building or cell.building
+            lesson_id = conn.execute(
+                "INSERT INTO lessons (cell_id, snapshot_id, part_idx, lesson_type, discipline_id, subgroup,"
+                " building, week_factor) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (cell_id, snap_id, part_idx, lt.canonical,
+                 discipline_id(lesson.discipline, disc) if disc else None,
+                 lesson.subgroup, building, base / n),
             ).lastrowid
-            n = len(p.lessons)
-            base = 1.0 if cell.week_type == "both" else 0.5
-            for part_idx, lesson in enumerate(p.lessons):
-                note("group", cell.group_name, group, group.canonical)
-                lt = canon.lesson_type(lesson.type_raw, lesson.lesson_type)
-                if lesson.type_raw:
-                    note("lesson_type", lesson.type_raw, lt, lt.canonical)
-                d = canon.discipline(lesson.discipline) if lesson.discipline else None
-                if d:
-                    note("discipline", lesson.discipline, d, d.canonical or NOT_DISCIPLINE)
-                disc = d.canonical if d else None
-                building = lesson.building or cell.building
-                lesson_id = conn.execute(
-                    "INSERT INTO lessons (cell_id, snapshot_id, part_idx, lesson_type, discipline_id, subgroup,"
-                    " building, week_factor) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (cell_id, snap_id, part_idx, lt.canonical,
-                     discipline_id(lesson.discipline, disc) if disc else None,
-                     lesson.subgroup, building, base / n),
-                ).lastrowid
-                resolved = [(t, canon.teacher(t, disc)) for t in lesson.teachers]
-                for t, r in resolved:
-                    note("teacher", t, r, r.canonical)
-                canon_teachers = list(dict.fromkeys(r.canonical for _, r in resolved))
-                for t in canon_teachers:
-                    tid = get_id("t", (t,), "INSERT INTO teachers (snapshot_id, full_name, surname) VALUES (?, ?, ?)",
-                                 (snap_id, t, t.split()[0]))
-                    conn.execute("INSERT INTO lesson_teachers (lesson_id, teacher_id) VALUES (?, ?)", (lesson_id, tid))
-                rooms = []
-                for room, raw in zip(lesson.rooms, lesson.rooms_raw):
-                    b, r_name, res = canon.room(building, room, raw)
-                    note("room", f"{building}|{raw}", res, f"{b}|{r_name}")
-                    rooms.append((b, r_name))
-                for b, r_name in dict.fromkeys(rooms):
-                    rid = get_id("r", (b, r_name), "INSERT INTO rooms (snapshot_id, building, name) VALUES (?, ?, ?)",
-                                 (snap_id, b, r_name))
-                    conn.execute("INSERT INTO lesson_rooms (lesson_id, room_id) VALUES (?, ?)", (lesson_id, rid))
-                flags = {
-                    "has_type": lt.canonical != UNKNOWN,
-                    "has_discipline": bool(disc),
-                    "has_teacher": bool(lesson.teachers),
-                    "has_room": bool(lesson.rooms),
-                    "discipline_fuzzy": lesson.discipline in fuzzy_aliases,
-                    "teacher_surname_only": any(is_surname_only(t) for t in canon_teachers),
-                    "split_cell": n > 1,
-                    "suspicious_group": suspicious_group(group.canonical),
-                    "truncated": p.truncated,
-                }
-                flags["needs_review"] = (not (flags["has_discipline"] and flags["has_teacher"] and flags["has_room"])
-                                         or flags["suspicious_group"] or flags["truncated"])
-                flags["unverified_name"] = ((bool(d) and d.source in UNVERIFIED)
-                                            or any(r.source in UNVERIFIED for _, r in resolved))
-                conn.execute(
-                    f"INSERT INTO quality (lesson_id, {', '.join(flags)}) VALUES (?{', ?' * len(flags)})",
-                    (lesson_id, *map(int, flags.values())),
-                )
-        scores = {(m.kind, m.alias): m.score for m in [*canon.disc_merges, *canon.teacher_merges]}
-        rows = []
-        for (kind, spelling, canonical), (r, uses) in tally.items():
-            shown = spelling.split("|", 1)[1] if kind == "room" else spelling
-            target = canonical.split("|", 1)[1] if kind == "room" else canonical
-            kinds = [r.kind] if r.kind else classify(kind, shown, target)
-            rows.append((snap_id, kind, spelling, canonical, r.source, r.confidence, ", ".join(kinds),
-                         r.note, uses, scores.get((kind, spelling))))
-        conn.executemany("INSERT INTO spellings (snapshot_id, kind, spelling, canonical, source, confidence,"
-                         " error_kinds, note, lessons, score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
-        conn.executemany("INSERT INTO rule_audit (snapshot_id, kind, tp, fp, fn) VALUES (?, ?, ?, ?, ?)",
-                         [(snap_id, kind, a.tp, a.fp, a.fn) for kind, a in canon.audit().items()])
+            resolved = [(t, canon.teacher(t, disc)) for t in lesson.teachers]
+            for t, r in resolved:
+                note("teacher", t, r, r.canonical)
+            canon_teachers = list(dict.fromkeys(r.canonical for _, r in resolved))
+            for t in canon_teachers:
+                tid = get_id("t", (t,), "INSERT INTO teachers (snapshot_id, full_name, surname) VALUES (?, ?, ?)",
+                             (snap_id, t, t.split()[0]))
+                conn.execute("INSERT INTO lesson_teachers (lesson_id, teacher_id) VALUES (?, ?)", (lesson_id, tid))
+            rooms = []
+            for room, raw in zip(lesson.rooms, lesson.rooms_raw):
+                b, r_name, res = canon.room(building, room, raw)
+                note("room", f"{building}|{raw}", res, f"{b}|{r_name}")
+                rooms.append((b, r_name))
+            for b, r_name in dict.fromkeys(rooms):
+                rid = get_id("r", (b, r_name), "INSERT INTO rooms (snapshot_id, building, name) VALUES (?, ?, ?)",
+                             (snap_id, b, r_name))
+                conn.execute("INSERT INTO lesson_rooms (lesson_id, room_id) VALUES (?, ?)", (lesson_id, rid))
+            flags = {
+                "has_type": lt.canonical != UNKNOWN,
+                "has_discipline": bool(disc),
+                "has_teacher": bool(lesson.teachers),
+                "has_room": bool(lesson.rooms),
+                "discipline_fuzzy": lesson.discipline in fuzzy_aliases,
+                "teacher_surname_only": any(is_surname_only(t) for t in canon_teachers),
+                "split_cell": n > 1,
+                "suspicious_group": suspicious_group(group.canonical),
+                "truncated": p.truncated,
+            }
+            flags["needs_review"] = (not (flags["has_discipline"] and flags["has_teacher"] and flags["has_room"])
+                                     or flags["suspicious_group"] or flags["truncated"])
+            flags["unverified_name"] = ((bool(d) and d.source in UNVERIFIED)
+                                        or any(r.source in UNVERIFIED for _, r in resolved))
+            conn.execute(
+                f"INSERT INTO quality (lesson_id, {', '.join(flags)}) VALUES (?{', ?' * len(flags)})",
+                (lesson_id, *map(int, flags.values())),
+            )
+    scores = {(m.kind, m.alias): m.score for m in [*canon.disc_merges, *canon.teacher_merges]}
+    rows = []
+    for (kind, spelling, canonical), (r, uses) in tally.items():
+        shown = spelling.split("|", 1)[1] if kind == "room" else spelling
+        target = canonical.split("|", 1)[1] if kind == "room" else canonical
+        kinds = [r.kind] if r.kind else classify(kind, shown, target)
+        rows.append((snap_id, kind, spelling, canonical, r.source, r.confidence, ", ".join(kinds),
+                     r.note, uses, scores.get((kind, spelling))))
+    conn.executemany("INSERT INTO spellings (snapshot_id, kind, spelling, canonical, source, confidence,"
+                     " error_kinds, note, lessons, score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
+    conn.executemany("INSERT INTO rule_audit (snapshot_id, kind, tp, fp, fn) VALUES (?, ?, ?, ?, ?)",
+                     [(snap_id, kind, a.tp, a.fp, a.fn) for kind, a in canon.audit().items()])
     return snap_id
 
 
 def ensure_loaded(conn: sqlite3.Connection, snapshots_dir: Path,
                   dictionary_dir: Path = DICTIONARY_DIR) -> tuple[list[int], list[tuple[str, str]]]:
-    """Загружает снапшоты из папки, которых ещё нет в БД.
+    """Приводит БД к папке снапшотов: загружает новые файлы, убирает данные удалённых.
 
     Если словарь написаний поменялся с прошлой загрузки, все снапшоты
     перечитываются: канон написаний зависит от словаря.
     Возвращает id загруженных и список (файл, ошибка) для файлов, которые
     прочитать не удалось: битый снапшот или словарь не должен ронять стенд.
+
+    Если в БД ничего менять не нужно, обходится чтением без блокировок. Иначе
+    каждое изменение — под блокировкой записи, и состояние перепроверяется под
+    ней: пока эта вкладка ждала, другая могла уже всё загрузить.
     """
+    files = sorted(Path(snapshots_dir).glob("*.json"))
     try:
         dictionary = load_dictionary(dictionary_dir)
     except ValueError as e:     # DictionaryError: прежние данные остаются, стенд показывает предупреждение
-        return [], [(p.name, str(e)) for p in sorted(Path(snapshots_dir).glob("*.json"))]
+        return [], [(p.name, str(e)) for p in files]
     current = fingerprint(dictionary_dir)
-    row = conn.execute("SELECT value FROM meta WHERE key = 'dictionary'").fetchone()
-    if row is None or row[0] != current:
-        with conn:
-            conn.execute("DELETE FROM snapshots")
-            conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('dictionary', ?)", (current,))
-    known = {row[0] for row in conn.execute("SELECT file_name FROM snapshots")}
+    names = {p.name for p in files}
+
+    def stale() -> bool:
+        row = conn.execute("SELECT value FROM meta WHERE key = 'dictionary'").fetchone()
+        return row is None or row[0] != current
+
+    def known() -> set[str]:
+        return {row[0] for row in conn.execute("SELECT file_name FROM snapshots")}
+
+    if stale() or known() - names:
+        with _write_lock(conn):
+            if stale():
+                conn.execute("DELETE FROM snapshots")
+                conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('dictionary', ?)", (current,))
+            conn.executemany("DELETE FROM snapshots WHERE file_name = ?", [(n,) for n in known() - names])
     loaded, errors = [], []
-    for p in sorted(Path(snapshots_dir).glob("*.json")):
-        if p.name in known:
+    already = known()
+    for p in files:
+        if p.name in already:
             continue
         try:
-            loaded.append(load_snapshot(conn, p, dictionary=dictionary))
-        except (ValueError, OSError, AttributeError, TypeError) as e:
+            with _write_lock(conn):
+                if conn.execute("SELECT 1 FROM snapshots WHERE file_name = ?", (p.name,)).fetchone():
+                    continue
+                loaded.append(_insert_snapshot(conn, p, dictionary))
+        except (ValueError, OSError, AttributeError, TypeError, KeyError) as e:
             errors.append((p.name, str(e)))
     return loaded, errors

@@ -32,7 +32,7 @@ def form_label(slug: str) -> str:
     return FORMS.get(slug, slug or "—")
 
 COLUMNS = {
-    "teacher": "Преподаватель", "hours": "Часов в неделю", "lessons": "Занятий в неделю",
+    "teacher": "Преподаватель", "lessons": "Занятий в неделю",
     "disciplines": "Дисциплин", "groups": "Групп", "rooms": "Аудитории", "room_label": "Аудитория",
     "room_building": "Корпус аудитории", "room": "Номер", "discipline": "Дисциплина", "teachers": "Преподаватели",
     "lesson_type": "Тип занятия", "day": "День", "date": "Дата", "session_week": "Неделя сессии", "time_from": "Начало", "time_to": "Конец",
@@ -52,6 +52,16 @@ COLUMNS = {
 }
 
 
-def ru(df):
-    """Переименовать колонки DataFrame для показа пользователю."""
-    return df.rename(columns=COLUMNS)
+# Академический час — 45 минут: пара (1.5 астрономического часа) — 2 ак. часа.
+HOURS = {True: "ак. часов", False: "астр. часов"}
+
+
+def hours_label(academic: bool) -> str:
+    """Заголовок столбца hours: «Ак. часов в неделю» / «Астр. часов в неделю»."""
+    return f"{HOURS[academic].capitalize()} в неделю"
+
+
+def ru(df, academic: bool = True):
+    """Переименовать колонки DataFrame для показа пользователю. academic — в каких часах
+    посчитан столбец hours (как в фильтре «Часы»)."""
+    return df.rename(columns={**COLUMNS, "hours": hours_label(academic)})

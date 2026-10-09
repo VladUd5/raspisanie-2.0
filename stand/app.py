@@ -1,4 +1,6 @@
 """Лабораторный стенд «Расписание 2.0»: сбор → очистка → анализ."""
+import sqlite3
+
 import streamlit as st
 
 from config import db_path, snapshots_dir
@@ -8,22 +10,26 @@ from ui import filters
 st.set_page_config(page_title="Расписание 2.0", page_icon="📅", layout="wide")
 
 
-def _load_new_snapshots() -> list[tuple[str, str]]:
+def _load_new_snapshots() -> list[str]:
     """На каждом запуске: новые файлы в data/snapshots (положенные руками или
     оставшиеся от прерванного сбора) попадают в БД без перезапуска стенда.
-    Если новых файлов нет, это один SELECT и glob."""
-    conn = connect(db_path())
+    Если новых файлов нет, это пара SELECT и glob. → предупреждения для показа."""
     try:
-        loaded, errors = ensure_loaded(conn, snapshots_dir())
-    finally:
-        conn.close()
+        conn = connect(db_path())
+        try:
+            loaded, errors = ensure_loaded(conn, snapshots_dir())
+        finally:
+            conn.close()
+    except sqlite3.Error as e:   # БД занята дольше таймаута или недоступна на запись: показываем что есть
+        return [f"Новые снапшоты не загружены в базу ({e}). Обновите страницу позже; "
+                "если повторяется — см. «Если что-то не работает» в README."]
     if loaded:
         st.cache_data.clear()
-    return errors
+    return [f"Снапшот `{name}` не загружен: {err}" for name, err in errors]
 
 
-for name, err in _load_new_snapshots():
-    st.warning(f"Снапшот `{name}` не загружен: {err}")
+for warning in _load_new_snapshots():
+    st.warning(warning)
 
 # Страницы лежат в views/, а не в pages/: папку pages/ рядом с точкой входа
 # Streamlit подхватывает сам (старый режим многостраничности), и тогда прямая

@@ -163,8 +163,8 @@ def test_spellings_kind_switch_changes_cards(env):
     assert "Иностранный язык" in text() and "Шалаева Н.В." not in text()
 
 
-@pytest.mark.parametrize("page, column", [("teachers", "Часов в неделю"), ("disciplines", "Часов в неделю"),
-                                          ("rooms", "Часов в неделю"), ("groups", "Пар в неделю")])
+@pytest.mark.parametrize("page, column", [("teachers", "Ак. часов в неделю"), ("disciplines", "Ак. часов в неделю"),
+                                          ("rooms", "Ак. часов в неделю"), ("groups", "Пар в неделю")])
 def test_ranking_can_show_least_loaded_first(env, page, column):
     at = AppTest.from_file(APP, default_timeout=60)
     at.run()
@@ -175,6 +175,19 @@ def test_ranking_can_show_least_loaded_first(env, page, column):
     assert not at.exception, at.exception
     values = at.dataframe[0].value[column].tolist()
     assert values == sorted(values)                      # наименее загруженные — первыми
+
+
+def test_hours_unit_switch(env):
+    """Часы по умолчанию академические; астрономические — те же пары по 1.5 ч вместо 2."""
+    at = AppTest.from_file(APP, default_timeout=60)
+    at.run()
+    at.switch_page("views/teachers.py")
+    at.run()
+    academic = at.dataframe[0].value.set_index("Преподаватель")["Ак. часов в неделю"]
+    at.radio(key="f_hours").set_value(False).run()
+    assert not at.exception, at.exception
+    astro = at.dataframe[0].value.set_index("Преподаватель")["Астр. часов в неделю"]
+    assert (astro * 4 / 3).round(6).equals(academic.loc[astro.index].round(6))
 
 
 @pytest.mark.parametrize("what", ["teacher", "group", "room"])

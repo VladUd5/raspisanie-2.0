@@ -2,7 +2,7 @@ import streamlit as st
 
 from analytics import queries as q
 from charts.common import bar_h
-from labels import ru
+from labels import HOURS, hours_label, ru
 from ui import filters, ranking, theme
 
 st.title("Группы")
@@ -12,6 +12,7 @@ ctx = filters.current()
 if filters.need_data(ctx):
     st.stop()
 lessons, teachers, rooms = filters.filtered(ctx)
+ac = ctx.filters.academic_hours   # в каких часах считать (фильтр «Часы»)
 groups = q.group_options(lessons["group_name"])
 if not groups:
     st.info("В выборке нет групп.")
@@ -25,13 +26,13 @@ load = q.rank(load, "pairs", "group_name", ascending)
 left, right = st.columns([3, 2])
 left.plotly_chart(bar_h(load, "group_name", "pairs", ranking.title(top, ascending, "групп", "парам в неделю"),
                         "пар в неделю", theme.mode(), top=top), width="stretch")
-right.dataframe(ru(load), hide_index=True, width="stretch", height=520,
+right.dataframe(ru(load, ac), hide_index=True, width="stretch", height=520,
                 column_config={"Пар в неделю": st.column_config.NumberColumn(format="%.1f"),
-                               "Часов в неделю": st.column_config.NumberColumn(format="%.2f")})
+                               hours_label(ac): st.column_config.NumberColumn(format="%.2f")})
 
 st.subheader("Неделя одной группы")
 group = st.selectbox("Группа", groups, format_func=lambda g: g or "(пустое имя)")
 st.dataframe(q.group_grid(lessons, teachers, rooms, group), width="stretch")
 daily = q.group_daily_load(lessons, group)
-st.plotly_chart(bar_h(daily.iloc[::-1], "day", "hours", f"{group}: часов по дням", "часов", theme.mode(), top=7),
+st.plotly_chart(bar_h(daily.iloc[::-1], "day", "hours", f"{group}: {HOURS[ac]} по дням", HOURS[ac], theme.mode(), top=7),
                 width="stretch")

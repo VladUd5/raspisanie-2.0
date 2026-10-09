@@ -7,7 +7,12 @@
 
 Загруженность слота «день × время» у преподавателя и аудитории не больше одной
 пары в неделю: верхняя + нижняя неделя как раз дают 1, а наложения (ошибки
-расписания, сессии заочников в «тот же» день) срезаются пропорционально.
+расписания, недатированные занятия заочников в «тот же» день) срезаются
+пропорционально.
+
+У заочников занятие привязано к дате: одинаковые день и время в разные недели
+сессии — разные события. В режиме «все недели вместе» нагрузка поэтому — сумма
+по неделям сессии, а не за одну неделю.
 """
 import sqlite3
 from dataclasses import dataclass
@@ -19,7 +24,11 @@ import pandas as pd
 from etl.locations import ADJACENT
 from labels import DAYS
 
-SLOT_KEY = ["day_idx", "time_from", "week_type", "lesson_type", "discipline"]
+SLOT_KEY = ["date", "day_idx", "time_from", "week_type", "lesson_type", "discipline"]
+# слот, в котором не больше одной пары: у заочников он привязан к дате
+SLOT = ["date", "day_idx", "time_from"]
+# академический час — 45 минут: пара 1.5 ч = 2 ак. ч
+ACADEMIC = 60 / 45
 
 
 @dataclass(frozen=True)
@@ -33,6 +42,7 @@ class Filters:
     lesson_types: tuple[str, ...] = ()
     full_weeks: bool = False   # занятия верхней/нижней недели и разрезанные ячейки — полной парой
     session_weeks: tuple[str, ...] = ()   # недели сессии заочки (понедельник)
+    academic_hours: bool = False   # часы академические (45 мин), иначе астрономические
 
 
 # --- чтение -------------------------------------------------------------------
@@ -159,8 +169,8 @@ def apply_filters(lessons: pd.DataFrame, f: Filters) -> pd.DataFrame:
         undated = lessons["session_week"] == ""
         mask &= (undated & ~lessons["study_form"].isin(dated_forms)) | lessons["session_week"].isin(f.session_weeks)
     out = lessons[mask].copy()
-    out["hours"] = out["duration_h"] * (1.0 if f.full_weeks else out["week_factor"])
     out["per_week"] = 1.0 if f.full_weeks else out["week_factor"]
+    out["hours"] = out["duration_h"] * (ACADEMIC if f.academic_hours else 1.0) * out["per_week"]
     return out
 
 
@@ -174,10 +184,10 @@ def _occupancy(df: pd.DataFrame, who: list[str]) -> pd.DataFrame:
     ev = _events(df, who).copy()
     if ev.empty:
         return ev
-    total = ev.groupby(who + ["day_idx", "time_from"])["per_week"].transform("sum")
+    total = ev.groupby(who + SLOT)["per_week"].transform("sum")
     scale = (1.0 / total).clip(upper=1.0)
     ev["per_week"] = ev["per_week"] * scale
-    ev["hours"] = ev["per_week"] * ev["duration_h"]
+    ev["hours"] = ev["hours"] * scale
     return ev
 
 
@@ -218,16 +228,17 @@ def teacher_by_type(lessons: pd.DataFrame, teachers: pd.DataFrame, teacher: str)
 def teacher_schedule(lessons: pd.DataFrame, teachers: pd.DataFrame, rooms: pd.DataFrame, teacher: str) -> pd.DataFrame:
     """Занятия преподавателя на неделю: одна строка на событие, группы потока — через запятую."""
     df = lessons.merge(teachers[teachers["teacher"] == teacher], on="lesson_id")
+    cols = ["date", "day", "time_from", "week_type", "lesson_type", "discipline", "groups", "rooms", "hours"]
     if df.empty:
-        return pd.DataFrame(columns=["day", "time_from", "week_type", "lesson_type", "discipline", "groups", "rooms", "hours"])
+        return pd.DataFrame(columns=cols)
     room_txt = _room_text(rooms)
     df = df.merge(room_txt, on="lesson_id", how="left")
     out = df.groupby(SLOT_KEY + ["day"], as_index=False, dropna=False).agg(
         groups=("group_name", lambda s: ", ".join(sorted(set(s)))),
         rooms=("rooms", lambda s: ", ".join(sorted({x for x in s if isinstance(x, str)}))),
         hours=("hours", "max"))
-    return out.sort_values(["day_idx", "time_from"])[
-        ["day", "time_from", "week_type", "lesson_type", "discipline", "groups", "rooms", "hours"]]
+    out = out.sort_values(["date", "day_idx", "time_from"])[cols]
+    return out if (out["date"] != "").any() else out.drop(columns="date")
 
 
 # --- аудитории ------------------------------------------------------------------
@@ -378,12 +389,22 @@ def _slot_pivot(values: pd.Series, slots: list[tuple[int, str]], fill: float) ->
     return p[sorted(p.columns)]
 
 
+def _weekly(ev: pd.DataFrame) -> pd.DataFrame:
+    """Занятость слотов в среднем за неделю: если в выборке несколько недель сессии заочников
+    («все недели вместе»), датированные события делятся на число недель."""
+    dated = ev["session_week"] != ""
+    weeks = ev.loc[dated, "session_week"].nunique()
+    if weeks < 2:
+        return ev
+    return ev.assign(per_week=ev["per_week"].where(~dated, ev["per_week"] / weeks))
+
+
 def peak_hours(lessons: pd.DataFrame) -> pd.DataFrame:
     """Сколько групп в среднем занимается в каждый слот недели (верхняя и нижняя неделя —
     по половине; параллельные подгруппы одной группы — одна пара)."""
     if lessons.empty:
         return pd.DataFrame()
-    ev = _occupancy(lessons, ["group_name", "institute", "study_form"])
+    ev = _weekly(_occupancy(lessons, ["group_name", "institute", "study_form"]))
     per_slot = ev.groupby(["day_idx", "time_from"])["per_week"].sum()
     return _slot_pivot(per_slot, _week_slots(lessons), 0.0)
 
@@ -397,7 +418,7 @@ def room_fund_occupancy(lessons: pd.DataFrame, rooms: pd.DataFrame) -> pd.DataFr
     df = _rooms_scope(lessons, rooms, "all")
     if df.empty:
         return pd.DataFrame(columns=cols)
-    ev = _occupancy(df, ["room_label"])
+    ev = _weekly(_occupancy(df, ["room_label"]))
     slots = len(_week_slots(lessons))
     out = ev.groupby("room_building").agg(busy=("per_week", "sum"))
     out["rooms"] = df.groupby("room_building")["room_label"].nunique()
@@ -414,10 +435,10 @@ def free_rooms(lessons: pd.DataFrame, rooms: pd.DataFrame, building: str) -> pd.
     df = df[df["room_building"] == building]
     if df.empty:
         return pd.DataFrame()
-    ev = _occupancy(df, ["room_label"])
+    ev = _weekly(_occupancy(df, ["room_label"]))
     total = df["room_label"].nunique()
     busy = ev.groupby(["day_idx", "time_from"])["per_week"].sum()
-    return total - _slot_pivot(busy, _week_slots(lessons), 0.0)
+    return (total - _slot_pivot(busy, _week_slots(lessons), 0.0)).clip(lower=0)
 
 
 # --- обзор и качество ---------------------------------------------------------------
@@ -464,12 +485,13 @@ def teacher_conflicts(lessons: pd.DataFrame, teachers: pd.DataFrame) -> pd.DataF
     ev = _events(df, ["teacher"])
     if ev.empty:
         return pd.DataFrame(columns=["teacher", "day", "time_from", "week_type", "events", "disciplines", "groups"])
-    g = ev.groupby(["teacher", "day_idx", "day", "time_from", "week_type"], as_index=False).agg(
+    g = ev.groupby(["teacher", "date", "day_idx", "day", "time_from", "week_type"], as_index=False).agg(
         events=("lesson_id", "size"), cells=("cell_id", "nunique"),
         disciplines=("discipline", lambda s: ", ".join(sorted(set(s)))),
         groups=("group_name", lambda s: ", ".join(sorted(set(s)))))
     g = g[(g["events"] > 1) & (g["cells"] > 1)].sort_values(["events", "teacher"], ascending=[False, True])
-    return g.drop(columns=["day_idx", "cells"]).reset_index(drop=True)
+    g = g.drop(columns=["day_idx", "cells"]).reset_index(drop=True)
+    return g if (g["date"] != "").any() else g.drop(columns="date")
 
 
 def day_shift_warnings(lessons: pd.DataFrame) -> pd.DataFrame:

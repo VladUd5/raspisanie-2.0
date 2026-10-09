@@ -70,7 +70,8 @@ def _synthetic(rows):
     """Минимальные кадры для проверки наложений: одна строка — одно занятие."""
     import pandas as pd
     base = dict(cell_building="УК1", institute="И", study_form="Очная", day="понедельник", day_idx=0,
-                time_from="08:30", duration_h=1.5, week_type="both", week_factor=1.0, lesson_type="лекция")
+                time_from="08:30", duration_h=1.5, week_type="both", week_factor=1.0, lesson_type="лекция",
+                date="", session_week="")
     lessons = pd.DataFrame([{**base, "lesson_id": i, "cell_id": i, "group_name": g, "discipline": d}
                             for i, (g, d, _) in enumerate(rows)])
     teachers = pd.DataFrame([{"lesson_id": i, "teacher": t} for i, (_, _, t) in enumerate(rows)])
@@ -224,7 +225,7 @@ def test_group_load_counts_pairs_per_week(frames):
 
 def test_group_load_parallel_subgroups_are_one_pair():
     base = dict(institute="И", study_form="Очная", group_name="Г-101", day_idx=0, time_from="08:30",
-                week_type="both", duration_h=1.5, per_week=1.0, hours=1.5)
+                week_type="both", duration_h=1.5, per_week=1.0, hours=1.5, date="")
     df = pd.DataFrame([{**base, "lesson_type": "лабораторная", "discipline": "Химия", "subgroup": 1},
                        {**base, "lesson_type": "лабораторная", "discipline": "Физика", "subgroup": 2}])
     assert q.group_load(df)["pairs"].tolist() == [1.0]
@@ -286,3 +287,43 @@ def test_session_week_filter():
     out = q.apply_filters(lessons, q.Filters(session_weeks=("2026-10-05",)))
     assert list(zip(out["study_form"], out["session_week"])) == [("Заочная", "2026-10-05"), ("Очная", "")]
     assert len(q.apply_filters(lessons, q.Filters())) == 4
+
+
+def _session(rows):
+    """Заочник: одно и то же занятие в разные недели сессии. rows — (дата, неделя сессии, группа)."""
+    base = dict(cell_building="УК1", institute="И", study_form="Заочная", day="понедельник", day_idx=0,
+                time_from="08:30", duration_h=1.5, week_type="both", week_factor=1.0, lesson_type="лекция",
+                discipline="Химия")
+    lessons = pd.DataFrame([{**base, "lesson_id": i, "cell_id": i, "date": d, "session_week": w, "group_name": g}
+                            for i, (d, w, g) in enumerate(rows)])
+    teachers = pd.DataFrame({"lesson_id": range(len(rows)), "teacher": "Иванов И.И."})
+    rooms = pd.DataFrame({"lesson_id": range(len(rows)), "room_building": "УК1", "room": "101"})
+    return q.apply_filters(lessons, q.Filters()), teachers, rooms
+
+
+def test_all_session_weeks_sum_dated_lessons():
+    # «все недели вместе»: понедельник 08:30 в две разные недели — два занятия, а не одно
+    lessons, teachers, rooms = _session([("2026-09-28", "2026-09-28", "А"), ("2026-10-05", "2026-10-05", "А")])
+    load = q.teacher_load(lessons, teachers, rooms).set_index("teacher")
+    assert load.loc["Иванов И.И.", "lessons"] == pytest.approx(2.0)
+    assert q.room_load(lessons, rooms)["hours"].iloc[0] == pytest.approx(3.0)
+    assert q.teacher_conflicts(lessons, teachers).empty
+    assert q.teacher_schedule(lessons, teachers, rooms, "Иванов И.И.")["date"].tolist() == ["2026-09-28", "2026-10-05"]
+
+
+def test_slot_infographics_average_over_session_weeks():
+    # две недели сессии, в каждую слот занят одной группой → в среднем одна группа и одна
+    # занятая аудитория в неделю, а не две
+    lessons, _, rooms = _session([("2026-09-28", "2026-09-28", "А"), ("2026-10-05", "2026-10-05", "Б")])
+    assert q.peak_hours(lessons).loc["понедельник", "08:30"] == pytest.approx(1.0)
+    assert q.room_fund_occupancy(lessons, rooms)["occupancy"].iloc[0] == pytest.approx(100.0)
+    assert q.free_rooms(lessons, rooms, "УК1").loc["понедельник", "08:30"] == pytest.approx(0.0)
+
+
+def test_academic_hours(frames):
+    lessons, teachers, rooms, *_ = frames
+    f = q.apply_filters(lessons, q.Filters(academic_hours=True))
+    load = q.teacher_load(f, teachers, rooms).set_index("teacher")
+    assert load.loc["Аленичева Н.В.", "hours"] == pytest.approx(2.0)      # пара 1.5 ч = 2 ак. ч
+    assert load.loc["Шалаева Н.В.", "hours"] == pytest.approx(3.0)         # 2.25 ч
+    assert load.loc["Шалаева Н.В.", "lessons"] == pytest.approx(1.5)       # пары от единиц не зависят

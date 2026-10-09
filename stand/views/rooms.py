@@ -2,7 +2,7 @@ import streamlit as st
 
 from analytics import queries as q
 from charts.common import bar_h, heatmap
-from labels import ru
+from labels import HOURS, hours_label, ru
 from ui import filters, ranking, theme
 
 st.title("Аудитории")
@@ -12,6 +12,7 @@ ctx = filters.current()
 if filters.need_data(ctx):
     st.stop()
 lessons, teachers, rooms = filters.filtered(ctx)
+ac = ctx.filters.academic_hours   # в каких часах считать (фильтр «Часы»)
 
 scopes = {"all": "Все", "main": "Основные корпуса", "adjacent": "Прилегающие здания"}
 scope = st.segmented_control("Где", list(scopes), format_func=scopes.get, default="all", required=True)
@@ -24,20 +25,20 @@ top, ascending = ranking.controls("rooms", "аудиторий", 50, 20)
 load = q.rank(load, "hours", "room_label", ascending)
 left, right = st.columns([3, 2])
 left.plotly_chart(bar_h(load, "room_label", "hours", ranking.title(top, ascending, "аудиторий", "часам в неделю"),
-                        "часов в неделю", theme.mode(), top=top), width="stretch")
-right.dataframe(ru(load.drop(columns=["room_label"])), hide_index=True, width="stretch", height=520,
-                column_config={"Часов в неделю": st.column_config.NumberColumn(format="%.2f")})
+                        f"{HOURS[ac]} в неделю", theme.mode(), top=top), width="stretch")
+right.dataframe(ru(load.drop(columns=["room_label"]), ac), hide_index=True, width="stretch", height=520,
+                column_config={hours_label(ac): st.column_config.NumberColumn(format="%.2f")})
 
 st.subheader("Кабинет × дисциплина")
 matrix = q.room_discipline_matrix(lessons, rooms, scope)
 n_rooms = st.slider("Аудиторий в матрице", 5, 60, 25)
 n_disc = st.slider("Дисциплин в матрице", 5, 40, 15)
-st.plotly_chart(heatmap(matrix.iloc[:n_rooms, :n_disc], "Часов в неделю: аудитория × дисциплина", "часов",
+st.plotly_chart(heatmap(matrix.iloc[:n_rooms, :n_disc], f"{hours_label(ac)}: аудитория × дисциплина", HOURS[ac],
                         theme.mode()), width="stretch")
 with st.expander("Полная матрица таблицей"):
     st.dataframe(matrix.round(2), width="stretch")
 
 st.subheader("Неделя одной аудитории")
 room = st.selectbox("Аудитория", load["room_label"].tolist())
-st.plotly_chart(heatmap(q.room_heatmap(lessons, rooms, room), f"{room}: часы по дням и времени", "часов",
+st.plotly_chart(heatmap(q.room_heatmap(lessons, rooms, room), f"{room}: {HOURS[ac]} по дням и времени", HOURS[ac],
                         theme.mode()), width="stretch")

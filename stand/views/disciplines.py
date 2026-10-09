@@ -2,7 +2,7 @@ import streamlit as st
 
 from analytics import queries as q
 from charts.common import bar_h, stacked_by_type
-from labels import WEEK_TYPES, ru
+from labels import HOURS, WEEK_TYPES, hours_label, ru
 from ui import filters, ranking, theme
 
 st.title("Дисциплины")
@@ -12,6 +12,7 @@ ctx = filters.current()
 if filters.need_data(ctx):
     st.stop()
 lessons, teachers, rooms = filters.filtered(ctx)
+ac = ctx.filters.academic_hours   # в каких часах считать (фильтр «Часы»)
 summary = q.discipline_summary(lessons, teachers)
 summary = summary[summary["discipline"] != "—"]
 if summary.empty:
@@ -22,12 +23,12 @@ top, ascending = ranking.controls("disciplines", "дисциплин", 40, 15)
 summary = q.rank(summary, "hours", "discipline", ascending)
 left, right = st.columns([3, 2])
 left.plotly_chart(bar_h(summary, "discipline", "hours", ranking.title(top, ascending, "дисциплин", "часам в неделю"),
-                        "часов в неделю", theme.mode(), top=top), width="stretch")
-right.dataframe(ru(summary), hide_index=True, width="stretch", height=520,
-                column_config={"Часов в неделю": st.column_config.NumberColumn(format="%.2f")})
+                        f"{HOURS[ac]} в неделю", theme.mode(), top=top), width="stretch")
+right.dataframe(ru(summary, ac), hide_index=True, width="stretch", height=520,
+                column_config={hours_label(ac): st.column_config.NumberColumn(format="%.2f")})
 
 by_type = q.discipline_by_type(lessons, teachers, summary["discipline"].head(top).tolist())
-st.plotly_chart(stacked_by_type(by_type, "discipline", "hours", "Часы по типам занятий", "часов",
+st.plotly_chart(stacked_by_type(by_type, "discipline", "hours", "Часы по типам занятий", HOURS[ac],
                                 theme.mode()), width="stretch")
 
 st.subheader("Одна дисциплина")
