@@ -16,8 +16,9 @@ from etl.normalize import is_surname_only
 from etl.variants import NOT_DISCIPLINE, classify
 
 # Меняется при несовместимой правке схемы: стенд пересоздаёт БД, а снапшоты
-# из data/snapshots перечитывает ensure_loaded на следующем запуске.
-SCHEMA_VERSION = 4
+# из data/snapshots перечитывает ensure_loaded на следующем запуске. Поднимается и при смене
+# правил сравнения: таблица changes пересчитывается заново.
+SCHEMA_VERSION = 5
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;

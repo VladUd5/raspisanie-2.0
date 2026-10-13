@@ -123,6 +123,9 @@ class Store:
         finally:
             conn.close()
         items = _items(s)
+        if not ch.empty:                                     # строки без группы — мусор старого разбора
+            ch = ch[(ch["group_name"].str.strip() != "") | ~ch["kind"].isin(["added", "removed", "changed", "moved"])]
+            ch = ch.reset_index(drop=True)
         since = (today() - timedelta(days=change_badge_days())).isoformat()
         recent = ch[ch["day"] >= since] if not ch.empty else ch
         return Data(items, recent, ch, s.snapshot_id, s.collected_at, _index(items))

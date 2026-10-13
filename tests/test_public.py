@@ -52,7 +52,8 @@ def test_group_week_and_change_badge(client):
     r = client.get("/g/Б-Э-101")
     assert r.status_code == 200
     assert "История России" in r.text
-    assert "изменено" in r.text and "было:" in r.text            # аудитория химии поменялась вчера
+    assert "изменено" in r.text and "Было:" in r.text            # аудитория химии поменялась вчера
+    assert "1 пара" in r.text and "data-wk" in r.text
     # на неделе виден только один из вариантов 10:10 (верхняя/нижняя) или оба с пометкой вне семестра
     shown = ("Иностранный язык" in r.text) + ("пр.з" in r.text or r.text.count("История России") > 1)
     assert shown >= 1
@@ -122,3 +123,9 @@ def test_empty_db(tmp_path, monkeypatch):
     assert c.get("/").status_code == 200
     assert c.get("/g/Б-Э-101").status_code == 503
     assert c.get("/healthz").json() == {"ok": True}
+
+
+def test_day_and_subgroup_params_are_safe(client):
+    for params in ({"day": "9"}, {"day": "x"}, {"sub": "7"}, {"sub": "-1"}, {"day": "2", "sub": "1"}):
+        assert client.get("/g/Б-Э-101", params=params).status_code == 200
+    assert 'data-show="2"' in client.get("/g/Б-Э-101", params={"day": "2"}).text

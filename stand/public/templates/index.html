@@ -1,38 +1,40 @@
 {% extends "base.html" %}
+{% block topsearch %}<span style="flex:1"></span>{% endblock %}
 {% block main %}
 <section class="hero">
-  <h1>{{ site_title }}</h1>
-  <form action="/" method="get" role="search" class="bigsearch">
-    <input type="search" name="q" value="{{ q }}" placeholder="Например: Б-Э-101, Иванов, УК1 314" autofocus autocomplete="off" data-suggest aria-label="Поиск">
-    <button type="submit">Найти</button>
+  <h1>Расписание занятий</h1>
+  <p>Вавиловский университет · группы, преподаватели и аудитории</p>
+  <form class="search" action="/" method="get" role="search">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input type="search" name="q" value="{{ q }}" placeholder="Номер группы, фамилия или аудитория" autofocus autocomplete="off" data-suggest aria-label="Поиск">
   </form>
+  {% if examples %}<div class="examples">Например:{% for e in examples %} <a href="{{ e.url }}">{{ e.label }}</a>{% endfor %}</div>{% endif %}
   {% if not ready %}<p class="note">Расписание ещё загружается с сайта вуза — загляните через несколько минут.</p>{% endif %}
 </section>
 {% if q %}
 <section class="card">
   <h2>Найдено: {{ results|length }}</h2>
   {% if results %}
-  <ul class="results">
-    {% for e in results %}<li><a href="{{ e.url }}"><b>{{ e.label }}</b> <span class="muted">{{ e.kind }}{% if e.hint %} · {{ e.hint }}{% endif %}</span></a></li>{% endfor %}
+  <ul class="list">
+    {% for e in results %}<li><a class="row" href="{{ e.url }}"><b>{{ e.label }}</b><span>{{ e.kind }}{% if e.hint %} · {{ e.hint }}{% endif %}</span></a></li>{% endfor %}
   </ul>
-  {% else %}<p class="muted">Ничего не нашлось. Проверьте написание: группу можно искать без дефисов, преподавателя — по фамилии.</p>{% endif %}
+  {% else %}<p class="muted" style="margin:0">Ничего не нашлось. Группу можно искать без дефисов, преподавателя — по фамилии.</p>{% endif %}
 </section>
 {% endif %}
+<section class="card" id="pinned" hidden>
+  <h2>Закреплённые</h2>
+  <div class="tiles" id="pinned-list"></div>
+</section>
 <section class="card" id="recent" hidden>
   <h2>Недавно открытые</h2>
-  <ul class="results" id="recent-list"></ul>
+  <div class="tiles" id="recent-list"></div>
 </section>
 {% if recent_changes is not none and recent_changes|length %}
 <section class="card">
   <h2>Последние изменения</h2>
-  <ul class="changes">
-    {% for c in recent_changes.itertuples() %}
-    <li><span class="badge b-{{ c.kind }}">{{ change_label.get(c.kind, c.kind) }}</span>
-      {% if c.group_name %}<a href="{{ group_url(c.group_name) }}">{{ c.group_name }}</a>{% endif %}
-      {{ c.after or c.before }}</li>
-    {% endfor %}
-  </ul>
-  <p><a href="/changes">Все изменения →</a></p>
+  {% for c in recent_changes.itertuples() %}{% include "change_row.html" %}{% endfor %}
+  <p style="margin:12px 0 0"><a href="/changes">Все изменения →</a></p>
 </section>
 {% endif %}
 {% endblock %}
+{% block foot %}Сайт обновляет расписание дважды в день{% endblock %}

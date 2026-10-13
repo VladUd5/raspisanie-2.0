@@ -1,23 +1,44 @@
-<article class="lesson{% if l.cancelled %} cancelled{% endif %}{% if l.is_now %} now{% endif %}">
-  <div class="time">{{ l.time_from }}{% if l.time_to %}<br><span class="muted">{{ l.time_to }}</span>{% endif %}</div>
-  <div class="body">
-    <div class="line1">
-      {% if l.cancelled %}<span class="badge b-removed">отменено</span>
-      {% else %}<span class="type t-{{ l.type_short|lower }}">{{ l.type_short }}</span>{% endif %}
-      {% if l.is_now %}<span class="badge b-now">идёт сейчас</span>{% endif %}
-      {% if l.change and not l.cancelled %}<span class="badge b-{{ l.change.kind }}">{{ change_label.get(l.change.kind) }}</span>{% endif %}
-      {% if l.week_mark %}<span class="pill">{{ l.week_mark }}</span>{% endif %}
-      {% if not l.date and not l.cancelled %}<span class="pill">{{ ['пн','вт','ср','чт','пт','сб','вс'][l.day_idx] }}</span>{% endif %}
-    </div>
-    <div class="disc">{{ l.discipline or 'Занятие' }}{% if l.subgroup %} <span class="muted">· подгруппа {{ l.subgroup }}</span>{% endif %}</div>
-    <div class="meta">
-      {% for t in l.teachers %}<a href="{{ teacher_url(t) }}">{{ t }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
-      {% if l.rooms %}{% if l.teachers %} · {% endif %}{% for b, r in l.rooms %}<a href="{{ room_url(b, r) }}">{{ b }}, {{ r }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
-      {% if kind != 'group' or l.groups|length > 1 %}<div class="groups">{% for g in l.groups %}<a href="{{ group_url(g) }}">{{ g }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
-    </div>
-    {% if l.change and l.change.before and l.change.kind in ('changed', 'moved') %}<div class="was">было: {{ l.change.before }}</div>{% endif %}
+{% set ch = l.change if (l.change and not l.cancelled and l.change.kind in ('changed', 'moved', 'replaced', 'added')) else none %}
+<details class="ls c{{ colors.get(l.discipline, 0) }}{% if l.is_now %} is-now{% endif %}{% if l.cancelled %} cancelled{% endif %}{% if ch and not l.is_now %} has-change{% endif %}">
+  <summary>
+    <span class="l-time"><b>{{ l.time_from }}</b>{% if l.time_to %}<span>{{ l.time_to }}</span>{% endif %}{% if not l.date %}<span>{{ short_days[l.day_idx]|capitalize }}</span>{% elif l.pair %}<span>{{ l.pair }} пара</span>{% endif %}</span>
+    <span class="l-body">
+      <span class="l-type">
+        {% if l.cancelled %}Отменено{% else %}{{ l.type_title }}{% endif %}{% if l.subgroup %} · подгр. {{ l.subgroup }}{% endif %}{% if l.week_mark %} · {{ l.week_mark }}{% endif %}
+        {% if l.is_now %}<span class="tag now">идёт</span>{% elif ch %}<span class="tag {{ 'added' if ch.kind == 'added' else 'change' }}">{{ change_label.get(ch.kind) }}</span>{% endif %}
+      </span>
+      <span class="l-disc">{{ l.discipline or 'Занятие' }}</span>
+      {% if not l.cancelled %}
+      <span class="l-meta">
+        {%- set parts = [] -%}
+        {%- if kind != 'room' %}{% for b, r in l.rooms %}{% set _ = parts.append(b ~ ' · ' ~ r) %}{% endfor %}{% endif -%}
+        {%- if kind != 'group' %}{% set _ = parts.append(l.groups|join(', ') if l.groups|length < 4 else (l.groups[0] ~ ' и ещё ' ~ (l.groups|length - 1))) %}{% endif -%}
+        {%- if kind != 'teacher' and l.teachers %}{% set _ = parts.append(l.teachers[0] ~ (' и ещё ' ~ (l.teachers|length - 1) if l.teachers|length > 1 else '')) %}{% endif -%}
+        {{ parts|join(' · ') }}
+      </span>
+      {% endif %}
+    </span>
+  </summary>
+  <div class="pop">
+    <div class="when">{% if l.date %}{{ when_full(l.date) }}{% else %}{{ day_names[l.day_idx]|capitalize }}, без даты{% endif %}{% if l.pair %} · {{ l.pair }} пара{% endif %} · {{ l.time_from }}{% if l.time_to %}–{{ l.time_to }}{% endif %}</div>
+    <h3>{{ l.discipline or 'Занятие' }}</h3>
     {% if not l.cancelled %}
-    <details class="report"><summary>Ошибка в расписании?</summary>
+    <dl>
+      <dt>Вид</dt><dd>{{ l.type_title }}{% if l.subgroup %}, подгруппа {{ l.subgroup }}{% endif %}</dd>
+      {% if l.rooms %}<dt>Аудитория</dt><dd>{% for b, r in l.rooms %}<a href="{{ room_url(b, r) }}">{{ b }}, {{ r }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+      {% if l.teachers %}<dt>{{ 'Преподаватели' if l.teachers|length > 1 else 'Преподаватель' }}</dt><dd>{% for t in l.teachers %}<a href="{{ teacher_url(t) }}">{{ t }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+      <dt>{{ 'Группы' if l.groups|length > 1 else 'Группа' }}</dt><dd>{% for g in l.groups %}<a href="{{ group_url(g) }}">{{ g }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</dd>
+      {% if l.week_mark %}<dt>Неделя</dt><dd>{{ l.week_mark }}</dd>{% endif %}
+    </dl>
+    {% endif %}
+    {% if l.cancelled %}<div class="was"><b>Отменено</b>{% if l.change %} — замечено {{ ddmm(l.change.day) }}{% endif %}.</div>
+    {% elif ch and ch.kind == 'replaced' %}<div class="was"><b>Замена</b> с {{ ddmm(ch.day) }}. Было: {{ ch.before }}</div>
+    {% elif ch and ch.kind == 'changed' %}<div class="was"><b>Изменено</b> {{ ddmm(ch.day) }}. Было: {{ content(ch.before)|join('; ') }}</div>
+    {% elif ch and ch.kind == 'moved' %}<div class="was"><b>Перенесено</b> {{ ddmm(ch.day) }}. Было: {{ ch.before.split(': ', 1)[0] }}</div>
+    {% elif ch and ch.kind == 'added' %}<div class="was"><b>Новое занятие</b>, появилось {{ ddmm(ch.day) }}.</div>{% endif %}
+    {% if not l.cancelled %}
+    <details class="report">
+      <summary><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>Ошибка в этом занятии? Сообщить</summary>
       <form method="post" action="/report">
         <input type="hidden" name="page" value="{{ path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
         <input type="hidden" name="group_name" value="{{ l.groups|join(', ') }}">
@@ -31,10 +52,10 @@
           <select name="kind">{% for k, v in feedback_kinds.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
         </label>
         <label>Комментарий <textarea name="text" maxlength="1000" rows="3" placeholder="Например: занятие перенесли в ауд. 316"></textarea></label>
-        <p class="small muted">Сообщение анонимное и попадёт в учебный отдел. Не пишите сюда личные данные.</p>
-        <button type="submit">Отправить</button>
+        <p>Сообщение анонимное и попадёт в учебный отдел. Не пишите сюда личные данные.</p>
+        <button type="submit" class="btn primary">Отправить</button>
       </form>
     </details>
     {% endif %}
   </div>
-</article>
+</details>

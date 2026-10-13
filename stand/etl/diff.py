@@ -83,6 +83,7 @@ def compare(old: pd.DataFrame, new: pd.DataFrame, today: date, major_ratio: floa
         return s[~dated | (both & (s["date"] >= t))]
 
     a, b = comparable(old), comparable(new)
+    a, b = _drop_week_splits(a, b)
     m = a.merge(b, on=KEY, how="outer", suffixes=("_o", "_n"), indicator=True)
     removed = m[m["_merge"] == "left_only"]
     added = m[m["_merge"] == "right_only"]
@@ -132,6 +133,27 @@ def compare(old: pd.DataFrame, new: pd.DataFrame, today: date, major_ratio: floa
             "after": f"расписание формы «{form}» обновлено целиком: {n} изменений из {total} занятий"}
             for form, n, total in major])], ignore_index=True)
     return out.reset_index(drop=True)
+
+
+def _drop_week_splits(a: pd.DataFrame, b: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Пара «каждую неделю» с несколькими вариантами («A ║ B») стала отдельными занятиями верхней
+    и нижней недели из тех же вариантов — это уточнение разбора, а не изменение расписания.
+    Такие слоты убираются из сравнения с обеих сторон."""
+    k = GROUP + ["date", "day_idx", "time_from", "subgroup"]
+    ao, bo = a[a["date"] == ""], b[b["date"] == ""]
+    old_both = {tuple(r[k]): (i, set(r["content"])) for i, r in ao[ao["week_type"] == "both"].iterrows()}
+    old_split = set(map(tuple, ao.loc[ao["week_type"] != "both", k].values.tolist()))
+    new_both = set(map(tuple, bo.loc[bo["week_type"] == "both", k].values.tolist()))
+    drop_a, drop_b = [], []
+    for key, part in bo[bo["week_type"] != "both"].groupby(k):
+        key = key if isinstance(key, tuple) else (key,)
+        if key not in old_both or key in new_both or key in old_split:
+            continue
+        i, alts = old_both[key]
+        if all(set(c) <= alts for c in part["content"]):
+            drop_a.append(i)
+            drop_b.extend(part.index)
+    return a.drop(index=drop_a), b.drop(index=drop_b)
 
 
 def _row(kind, r, session_week, before, after, teachers, rooms) -> dict:

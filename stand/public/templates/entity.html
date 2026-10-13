@@ -1,53 +1,134 @@
 {% extends "base.html" %}
 {% block title %}{{ title }} — расписание{% endblock %}
+{% macro href(w=week.monday, d=none) -%}
+?week={{ w.isoformat() }}{% if sub %}&amp;sub={{ sub }}{% endif %}{% if d is not none %}&amp;day={{ d }}{% endif %}
+{%- endmacro %}
 {% block main %}
-<section class="head" data-recent="{{ title }}|{{ path }}|{{ subtitle }}">
-  <h1>{{ title }}</h1>
-  <div class="muted">{{ subtitle }}</div>
-  {% if request.query_params.get('reported') %}<p class="ok">Спасибо! Сообщение отправлено в учебный отдел.</p>{% endif %}
-</section>
-<nav class="weeknav">
-  {% if week.prev %}<a href="?week={{ week.prev.isoformat() }}" aria-label="Предыдущая неделя">◀</a>{% else %}<span></span>{% endif %}
-  <div class="weeklabel">
-    <b>{{ week.label }}</b>
-    {% if week.dated_only %}<span class="pill">неделя сессии</span>
-    {% elif week.week_type == 'numerator' %}<span class="pill up">верхняя неделя</span>
-    {% elif week.week_type == 'denominator' %}<span class="pill down">нижняя неделя</span>
-    {% elif not week.dated_only %}<span class="pill">вне семестра: обе недели</span>{% endif %}
-    {% if week.monday != current_monday %}<a class="small" href="{{ path }}">к текущей</a>{% endif %}
+<section class="ent" data-recent="{{ title }}|{{ path }}|{{ subtitle }}">
+  <div>
+    <div class="ent-sub">{{ subtitle }}</div>
+    <div class="ent-title">
+      <h1>{{ title }}</h1>
+      <button type="button" class="star" data-star aria-pressed="false" aria-label="Закрепить на главной" title="Закрепить на главной" hidden>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>
+      </button>
+    </div>
   </div>
-  {% if week.next %}<a href="?week={{ week.next.isoformat() }}" aria-label="Следующая неделя">▶</a>{% else %}<span></span>{% endif %}
+  <div class="ent-actions">
+    {% if subgroups %}
+    <nav class="seg" aria-label="Подгруппа">
+      <a href="?week={{ week.monday.isoformat() }}" {% if not sub %}aria-current="true"{% endif %}>Все</a>
+      {% for s in subgroups %}<a href="?week={{ week.monday.isoformat() }}&amp;sub={{ s }}" {% if sub == s %}aria-current="true"{% endif %}>Подгр. {{ s }}</a>{% endfor %}
+    </nav>
+    {% endif %}
+    {% if ics_path %}
+    <a class="btn primary" href="#calendar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+      В календарь телефона
+    </a>
+    {% endif %}
+  </div>
+</section>
+
+{% if request.query_params.get('reported') %}<p class="ok" role="status">Спасибо! Сообщение отправлено в учебный отдел.</p>{% endif %}
+
+<nav class="weekbar" aria-label="Неделя">
+  <div class="weekbar-l">
+    {% if week.prev %}<a class="arrow" href="{{ href(week.prev) }}" aria-label="Предыдущая неделя">{% else %}<a class="arrow" aria-disabled="true" aria-label="Предыдущей недели нет">{% endif %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></a>
+    <div class="weekname">
+      <b>{{ week.title }}</b>
+      <span>{% if week.dated_only %}неделя сессии{% elif week.number %}{{ week.number }}-я неделя семестра{% else %}вне семестра{% endif %}</span>
+    </div>
+    {% if week.next %}<a class="arrow" href="{{ href(week.next) }}" aria-label="Следующая неделя">{% else %}<a class="arrow" aria-disabled="true" aria-label="Следующей недели нет">{% endif %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+    {% if week.monday != current_monday %}<a class="btn" href="{{ path }}{% if sub %}?sub={{ sub }}{% endif %}">К текущей неделе</a>{% endif %}
+  </div>
+  {% if week.dated_only %}<span class="chip">Заочное обучение</span>
+  {% elif week.week_type == 'numerator' %}<span class="chip up"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 5l7 9H5z"/></svg>Верхняя неделя</span>
+  {% elif week.week_type == 'denominator' %}<span class="chip down"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 19l7-9H5z"/></svg>Нижняя неделя</span>
+  {% else %}<span class="chip">Вне семестра: показаны обе недели</span>{% endif %}
 </nav>
-{% if week.empty %}
-<section class="card"><p class="muted">На этой неделе занятий нет.</p></section>
-{% endif %}
-{% for day in week.days %}{% if day.lessons %}
-<section class="day{% if day.is_today %} today{% endif %}" {% if day.is_today %}id="today"{% endif %}>
-  <h2>{{ day.name|capitalize }}, {{ day.date.strftime('%d.%m') }}{% if day.is_today %} <span class="pill">сегодня</span>{% endif %}</h2>
-  {% for l in day.lessons %}{% include "lesson.html" %}{% endfor %}
-</section>
-{% endif %}{% endfor %}
-{% if week.undated %}
-<section class="day">
-  <h2>Занятия без даты</h2>
-  <p class="muted small">В файле расписания у этих занятий не указана дата.</p>
-  {% for l in week.undated %}{% include "lesson.html" %}{% endfor %}
-</section>
-{% endif %}
-{% if ics_path %}
-<section class="card">
-  <h2>📅 Подписаться в календарь</h2>
-  <p class="small">Календарь на телефоне сам подтянет новые недели и изменения.</p>
-  {% set base = public_url or (request.base_url|string).rstrip('/') %}
-  <div class="ics">
-    <a class="btn" href="webcal://{{ (base ~ ics_path).split('://', 1)[1] }}">Подписаться</a>
-    {% for s in subgroups %}<a class="btn ghost" href="webcal://{{ (base ~ ics_path).split('://', 1)[1] }}?sub={{ s }}">только подгруппа {{ s }}</a>{% endfor %}
+
+{% if up and up.lesson %}{% set l = up.lesson %}
+<section class="nowcard{% if up.state == 'later' %} calm{% endif %}" aria-label="Ближайшее занятие">
+  <div>
+    <div class="when"><i></i>
+      {% if up.state == 'now' %}Сейчас · {% if l.pair %}{{ l.pair }} пара · {% endif %}{{ l.time_from }}–{{ l.time_to }}
+      {% elif up.state == 'next' %}Следующая · {% if l.pair %}{{ l.pair }} пара · {% endif %}{{ l.time_from }}–{{ l.time_to }}
+      {% else %}Следующее занятие · {{ when_day(up.day.date) }} в {{ l.time_from }}{% endif %}
+    </div>
+    <div class="type">{{ l.type_title }}{% if l.subgroup %} · подгруппа {{ l.subgroup }}{% endif %}</div>
+    <div class="what">{{ l.discipline or 'Занятие' }}</div>
   </div>
-  <details class="small"><summary>Как подписаться вручную</summary>
-    <p>Ссылка: <code>{{ base ~ ics_path }}</code></p>
-    <p><b>iPhone:</b> Настройки → Календарь → Учётные записи → Добавить → Другое → Подписной календарь → вставьте ссылку.</p>
-    <p><b>Android / Google:</b> на компьютере откройте calendar.google.com → «Другие календари» → «+» → «Добавить по URL» → вставьте ссылку. Google обновляет подписку раз в несколько часов (иногда до суток) — это настройка Google.</p>
-  </details>
+  <div class="left">
+    {% if up.state == 'now' %}ещё <b>{{ mins(up.minutes) }}</b>
+    {% elif up.state == 'next' %}через <b>{{ mins(up.minutes) }}</b>{% endif %}
+  </div>
+  <div class="chips">
+    {% for b, r in l.rooms %}<a href="{{ room_url(b, r) }}">{{ b }}, {% if r[:1].isdigit() %}ауд. {% endif %}{{ r }}</a>{% endfor %}
+    {% if kind != 'teacher' %}{% for t in l.teachers %}<a href="{{ teacher_url(t) }}">{{ t }}</a>{% endfor %}{% endif %}
+    {% if kind != 'group' %}{% for g in l.groups %}<a href="{{ group_url(g) }}">{{ g }}</a>{% endfor %}{% endif %}
+  </div>
+  {% if up.state == 'now' %}<div class="bar" role="progressbar" aria-label="Прошло пары" aria-valuenow="{{ up.progress }}" aria-valuemin="0" aria-valuemax="100"><i style="width: {{ up.progress }}%"></i></div>{% endif %}
+  {% if up.state in ('now', 'next') %}
+  <div class="then">{% if up.left_today > 0 %}Сегодня ещё {{ up.left_today }} {{ plural(up.left_today, 'пара', 'пары', 'пар') }} после этой{% else %}Это последнее занятие сегодня{% endif %}</div>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if week.empty %}
+<section class="card"><p class="muted" style="margin:0">На этой неделе занятий нет.</p></section>
+{% else %}
+{% set rows = week.rows %}
+{% if rows %}
+<div class="wk" id="wk" data-wk data-show="{{ show_day }}">
+  <div class="wk-corner"></div>
+  {% for day in week.days %}{% set i = loop.index0 %}
+  <a class="wk-day{% if day.is_today %} is-today{% endif %}" href="{{ href(d=i) }}#wk" data-day="{{ i }}" style="--c: {{ i + 2 }}" {% if i == show_day %}aria-current="true"{% endif %}>
+    <span>{{ day.short|capitalize }}</span><b>{{ day.date.day }}</b>{% if day.is_today %}<small>сегодня</small>{% endif %}
+    <i class="{% if day.lessons|selectattr('change')|rejectattr('cancelled')|list %}chg{% elif day.lessons %}has{% endif %}"></i>
+  </a>
+  {% endfor %}
+  {% for day in week.days %}{% if not day.lessons %}<div class="wk-none" data-d="{{ loop.index0 }}">{% if day.is_today %}Сегодня{% else %}В этот день{% endif %} занятий нет</div>{% endif %}{% endfor %}
+  {% for row in rows %}{% set r = loop.index0 + 2 %}
+  <div class="wk-time" style="--r: {{ r }}">{% if row.pair %}<b>{{ row.pair }} пара</b>{% else %}<b>{{ row.time_from }}</b>{% endif %}<span>{{ row.time_from }}</span><span>{{ row.time_to }}</span></div>
+    {% for cell in row.cells %}{% set i = loop.index0 %}{% set day = week.days[i] %}
+  <div class="wk-cell{% if not cell %} empty{% endif %}{% if day.is_today %} is-today{% endif %}" style="--r: {{ r }}; --c: {{ i + 2 }}" data-c="{{ i + 2 }}" data-d="{{ i }}">{% for l in cell %}{% include "lesson.html" %}{% endfor %}</div>
+    {% endfor %}
+  {% endfor %}
+</div>
+{% endif %}
+{% endif %}
+
+{% if week.undated %}
+<section class="card">
+  <h2>Занятия без даты</h2>
+  <p class="muted small" style="margin:-4px 0 12px">В файле расписания у этих занятий не указана дата — только день недели.</p>
+  <div class="undated">{% for l in week.undated %}{% set day = none %}{% include "lesson.html" %}{% endfor %}</div>
+</section>
+{% endif %}
+
+{% if ics_path %}
+{% set base = public_url or (request.base_url|string).rstrip('/') %}
+{% set feed = (base ~ ics_path).split('://', 1)[1] %}
+<section class="card" id="calendar">
+  <h2>Расписание в календаре телефона</h2>
+  <div class="cal">
+    <div>
+      <p>Подпишитесь один раз — пары, новые недели и замены сами появятся в Google, Apple или Яндекс Календаре.</p>
+      <div class="btns">
+        <a class="btn primary" href="webcal://{{ feed }}">Подписаться{% if subgroups %} на все занятия{% endif %}</a>
+        {% for s in subgroups %}<a class="btn" href="webcal://{{ feed }}?sub={{ s }}">Только подгруппа {{ s }}</a>{% endfor %}
+      </div>
+    </div>
+    <div>
+      <details>
+        <summary>Как подписаться вручную</summary>
+        <p>Ссылка для подписки:<code>{{ base ~ ics_path }}</code></p>
+        <p><b>iPhone:</b> Настройки → Календарь → Учётные записи → Добавить → Другое → Подписной календарь → вставьте ссылку.</p>
+        <p><b>Android и Google:</b> на компьютере откройте calendar.google.com → «Другие календари» → «+» → «Добавить по URL». Google обновляет подписку раз в несколько часов.</p>
+      </details>
+    </div>
+  </div>
 </section>
 {% endif %}
 {% endblock %}

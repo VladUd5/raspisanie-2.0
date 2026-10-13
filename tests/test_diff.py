@@ -92,3 +92,19 @@ def test_future_week_removed_but_past_week_silent():
 
 def test_empty_sides():
     assert kinds(compare(frames([]), frames(BASE), TODAY, major_ratio=10)) == ["added"] * 4
+
+
+def test_week_split_of_merged_pair_is_not_a_change():
+    # старый разбор: одна пара «каждую неделю» с двумя вариантами; новый — верхняя и нижняя отдельно
+    old = BASE + [("Г-1", "", 4, "12:00", "both", "Земледелие", "Полетаев", "603"),
+                  ("Г-1", "", 4, "12:00", "both", "Агрохимия", "Губов", "603")]
+    new = BASE + [("Г-1", "", 4, "12:00", "numerator", "Земледелие", "Полетаев", "603"),
+                  ("Г-1", "", 4, "12:00", "denominator", "Агрохимия", "Губов", "603")]
+    assert compare(frames(old), frames(new), TODAY, major_ratio=1).empty
+
+
+def test_week_split_with_new_content_is_still_a_change():
+    old = BASE + [("Г-1", "", 4, "12:00", "both", "Земледелие", "Полетаев", "603")]
+    new = BASE + [("Г-1", "", 4, "12:00", "numerator", "Генетика", "Степанова", "905")]
+    out = compare(frames(old), frames(new), TODAY, major_ratio=1)
+    assert kinds(out) == ["added", "removed"]

@@ -1,0 +1,13 @@
+{%- set slot_b = c.before.split(': ', 1)[0] if ': ' in c.before else '' -%}
+{%- set slot_a = c.after.split(': ', 1)[0] if ': ' in c.after else '' -%}
+<div class="chg">
+  <span class="b">{% if c.group_name %}<a href="{{ group_url(c.group_name) }}"><b>{{ c.group_name }}</b></a>{% endif %}</span>
+  <span class="k k-{{ c.kind }}">{{ change_label.get(c.kind, c.kind) }}</span>
+  <span>
+    {%- if c.kind in ('added',) %}<b>{{ slot_a }}</b> — {{ content(c.after)|join('; ') }}
+    {%- elif c.kind in ('removed',) %}<b>{{ slot_b }}</b> — {{ content(c.before)|join('; ') }}
+    {%- elif c.kind == 'changed' %}<b>{{ slot_a }}</b> — {{ content(c.after)|join('; ') }}<br><span class="b">было: {{ content(c.before)|join('; ') }}</span>
+    {%- elif c.kind == 'moved' %}<b>{{ slot_b }} → {{ slot_a }}</b> — {{ content(c.after)|join('; ') }}
+    {%- else %}{{ c.after or c.before }}{% endif -%}
+  </span>
+</div>
