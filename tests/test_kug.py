@@ -115,3 +115,13 @@ def test_refresh_skips_files_without_group_code(tmp_path, monkeypatch):
     st = dict(conn.execute("SELECT url, status FROM kug_files").fetchall())
     assert st == {"/f/Grafik_B-LA_1-4kurs_och_2026-2027.pdf": "error", "/f/zo.pdf": "error", "/f/spo.pdf": "skipped"}
     assert "https://site/f/spo.pdf" not in pdfs
+
+
+def test_for_group_picks_file_with_its_course(tmp_path):
+    conn = store.connect(tmp_path / "f.db")
+    first = kug.KugFile("/f/1.pdf", "График_Б-ПИ_1курс_оч_2026-2027", "П", "Очная", "Б-ПИ", [1])
+    rest = kug.KugFile("/f/23.pdf", "График_Б-ПИ_2-3курс_оч_2026-2027", "П", "Очная", "Б-ПИ", [2, 3])
+    kug.save_file(conn, first, "ok", "")
+    kug.save_file(conn, rest, "ok", "")
+    assert kug.for_group(conn, "Б-ПИ-101", "Очная")["file"] == "/f/1.pdf"
+    assert kug.for_group(conn, "Б-ПИ-301", "Очная")["file"] == "/f/23.pdf"

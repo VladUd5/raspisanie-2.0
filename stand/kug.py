@@ -319,8 +319,10 @@ def for_group(conn: sqlite3.Connection, group_name: str, study_form: str, confir
     if key is None:
         return {"file": "", "title": "", "periods": []}
     code, course = key
-    f = conn.execute("SELECT url, title FROM kug_files WHERE code = ? AND form = ? ORDER BY checked_at DESC LIMIT 1",
-                     (code, study_form)).fetchone()
+    cands = conn.execute("SELECT url, title, courses FROM kug_files WHERE code = ? AND form = ? "
+                         "ORDER BY checked_at DESC", (code, study_form)).fetchall()
+    # у направления бывает несколько файлов («1 курс», «2-4 курс») — нужен тот, где есть курс группы
+    f = next((c for c in cands if str(course) in (c["courses"] or "").split(",")), cands[0] if cands else None)
     if f is None:
         return {"file": "", "title": "", "periods": []}
     q = "SELECT start_date, end_date FROM sessions WHERE file_url = ? AND course = ?"
