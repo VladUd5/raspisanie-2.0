@@ -1,22 +1,19 @@
 {% set ch = l.change if (l.change and not l.cancelled and l.change.kind in ('changed', 'moved', 'replaced', 'added')) else none %}
-<details class="ls c{{ colors.get(l.discipline, 0) }}{% if l.is_now %} is-now{% endif %}{% if l.cancelled %} cancelled{% endif %}{% if ch and not l.is_now %} has-change{% endif %}">
+<details class="ls t-{{ l.type_class }}{% if l.is_now %} is-now{% endif %}{% if l.cancelled %} cancelled{% endif %}{% if ch and not l.is_now %} has-change{% endif %}">
   <summary>
     <span class="l-time"><b>{{ l.time_from }}</b>{% if l.time_to %}<span>{{ l.time_to }}</span>{% endif %}{% if not l.date %}<span>{{ short_days[l.day_idx]|capitalize }}</span>{% elif l.pair %}<span>{{ l.pair }} пара</span>{% endif %}</span>
     <span class="l-body">
       <span class="l-type">
-        {% if l.cancelled %}Отменено{% else %}{{ l.type_title }}{% endif %}{% if l.subgroup %} · подгр. {{ l.subgroup }}{% endif %}{% if l.week_mark %} · {{ l.week_mark }}{% endif %}
+        <span class="l-chip">{% if l.cancelled %}Отменено{% else %}{{ l.type_title }}{% endif %}</span>
+        {%- if l.subgroup %} подгр. {{ l.subgroup }}{% endif %}{% if l.week_mark %} · {{ l.week_mark }}{% endif %}
         {% if kind != 'group' %}{% for m in l.form_marks %}<span class="tag form">{{ m }}</span>{% endfor %}{% endif %}
         {% if l.is_now %}<span class="tag now">идёт</span>{% elif ch %}<span class="tag {{ 'added' if ch.kind == 'added' else 'change' }}">{{ change_label.get(ch.kind) }}</span>{% endif %}
       </span>
       <span class="l-disc">{{ l.discipline or 'Занятие' }}</span>
       {% if not l.cancelled %}
-      <span class="l-meta">
-        {%- set parts = [] -%}
-        {%- if kind != 'room' %}{% for b, r in l.rooms %}{% set _ = parts.append(b ~ ' · ' ~ r) %}{% endfor %}{% endif -%}
-        {%- if kind != 'group' %}{% set _ = parts.append(l.groups|join(', ') if l.groups|length < 4 else (l.groups[0] ~ ' и ещё ' ~ (l.groups|length - 1))) %}{% endif -%}
-        {%- if kind != 'teacher' and l.teachers %}{% set _ = parts.append(l.teachers[0] ~ (' и ещё ' ~ (l.teachers|length - 1) if l.teachers|length > 1 else '')) %}{% endif -%}
-        {{ parts|join(' · ') }}
-      </span>
+      {% if kind != 'room' and l.rooms %}<span class="l-room"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span>{% for b, r in l.rooms %}{{ b }} · {{ r }}{% if not loop.last %}, {% endif %}{% endfor %}</span></span>{% endif %}
+      {% if kind != 'teacher' and l.teachers %}<span class="l-who"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></svg><span>{{ l.teachers[0] }}{% if l.teachers|length > 1 %} и ещё {{ l.teachers|length - 1 }}{% endif %}</span></span>{% endif %}
+      {% if kind != 'group' %}<span class="l-who"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.5-5 6.5-5s5.7 1.5 6.5 5M16 4.5a3.5 3.5 0 0 1 0 7M18 15c2 .6 3.2 2.2 3.6 5"/></svg><span>{% if l.groups|length < 4 %}{{ l.groups|join(', ') }}{% else %}{{ l.groups[0] }} и ещё {{ l.groups|length - 1 }}{% endif %}</span></span>{% endif %}
       {% endif %}
     </span>
   </summary>

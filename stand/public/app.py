@@ -158,7 +158,7 @@ def _entity(request: Request, kind: str, key, title: str, subtitle: str, ics_pat
             d.lessons = [x for x in d.lessons if x.subgroup in (0, sub)]
     return render(request, "entity.html", kind=kind, title=title, subtitle=subtitle, week=w, ics_path=ics_path,
                   subgroups=subgroups, sub=sub, path=request.url.path, snapshot_id=data.snapshot_id,
-                  current_monday=current, public_url=public_url(), colors=week.colors(rows),
+                  current_monday=current, public_url=public_url(), legend=week.LEGEND,
                   up=week.upcoming(w), show_day=_show_day(w, day_param), kind_title=KIND_TITLE[kind],
                   forms=forms if kind != "group" else [], form=form, form_codes=week.FORMS)
 

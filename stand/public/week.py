@@ -20,7 +20,10 @@ WEEK_MARK = {"numerator": "верхняя неделя", "denominator": "ниж�
 TYPE_SHORT = {"лекция": "ЛЕК", "практика": "ПР", "лабораторная": "ЛАБ", "семинар": "СЕМ", "консультация": "КОНС",
               "зачёт": "ЗАЧЁТ", "экзамен": "ЭКЗАМЕН", "не определён": "ЗАН"}
 TYPE_TITLE = {"не определён": "Занятие", "": "Занятие"}
-COLORS = 10                                   # цветов для дисциплин в style.css: .c0 … .c9
+# Цвет карточки — по типу занятия (style.css: .t-lec, .t-pr, .t-lab, .t-exam, .t-oth).
+TYPE_CLASS = {"лекция": "lec", "практика": "pr", "семинар": "pr", "лабораторная": "lab",
+              "зачёт": "exam", "экзамен": "exam", "консультация": "exam"}
+LEGEND = [("lec", "Лекция"), ("pr", "Практика"), ("lab", "Лабораторная"), ("exam", "Зачёт, экзамен"), ("oth", "Другое")]
 # Формы обучения: код для адреса (?form=), короткая пометка на карточке, порядок в переключателе.
 FORMS = {"Очная": ("och", "очн."), "Очно-заочная": ("ochzaoch", "оч.-заочн."), "Заочная": ("zaoch", "заочн.")}
 FORM_BY_CODE = {code: name for name, (code, _) in FORMS.items()}
@@ -55,6 +58,10 @@ class Lesson:
     @property
     def pair(self) -> int | None:
         return PAIRS.get(self.time_from)
+
+    @property
+    def type_class(self) -> str:
+        return TYPE_CLASS.get(self.lesson_type, "oth")
 
     @property
     def form_marks(self) -> list[str]:
@@ -151,11 +158,6 @@ def forms_of(rows: pd.DataFrame) -> list[str]:
     """Формы обучения в строках — в порядке FORMS."""
     present = set(rows["study_form"])
     return [f for f in FORMS if f in present] + sorted(present - set(FORMS))
-
-
-def colors(rows: pd.DataFrame) -> dict[str, int]:
-    """Цвет дисциплины: номер по алфавиту среди дисциплин страницы — один и тот же на всех неделях."""
-    return {d: i % COLORS for i, d in enumerate(sorted(set(rows["discipline"])))}
 
 
 def default_monday(rows: pd.DataFrame, today: date) -> date:

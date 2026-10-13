@@ -82,6 +82,8 @@
 </section>
 {% endif %}
 
+{% if not week.empty %}<div class="legend" aria-label="Цвета типов занятий">{% for k, label in legend %}<span class="t-{{ k }}"><i></i>{{ label }}</span>{% endfor %}</div>{% endif %}
+
 {% if week.empty %}
 <section class="card"><p class="muted" style="margin:0">На этой неделе занятий нет.</p></section>
 {% else %}
