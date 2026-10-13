@@ -191,3 +191,18 @@ def test_stats_tab_discipline_page_and_excel(client):
     teacher = client.get("/api/search", params={"q": "шалаева"}).json()[0]["url"]
     assert "Аналитика" in client.get(teacher, params={"view": "stats"}).text
     assert client.get("/d/Нет такой дисциплины").status_code == 404
+
+
+def test_teacher_card_from_directory(client, tmp_path):
+    import json
+    (tmp_path / "directory.json").write_text(json.dumps({
+        "fetched_at": "2026-10-13T10:00:00+04:00",
+        "departments": [{"name": "История", "head": "", "email": "kaf-hist@vavilovsar.ru", "phone": "8 (8452) 00-00-00",
+                         "address": "", "site": "https://site/kafedry/istoriya", "teacher_rooms": ["412"]}],
+        "people": [{"full_name": "Шалаева Наталья Владимировна", "post": "Доцент", "degree": "канд. ист. наук",
+                    "title": "доцент", "department": "История", "email": ""}]}, ensure_ascii=False), encoding="utf-8")
+    url = client.get("/api/search", params={"q": "шалаева"}).json()[0]["url"]
+    page = client.get(url).text
+    assert "Шалаева Наталья Владимировна" in page and "Доцент, канд. ист. наук" in page
+    assert "Кафедра «История»" in page and "ауд. 412" in page and "kaf-hist@vavilovsar.ru" in page
+    assert "каф. «История»" in client.get("/g/Б-Э-101").text                 # в подробностях занятия

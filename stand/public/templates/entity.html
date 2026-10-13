@@ -45,6 +45,8 @@
   <a href="{{ path }}?view=stats{{ keep }}" {% if view == 'stats' %}aria-current="page"{% endif %}>Аналитика</a>
 </nav>
 
+{% if who %}{% with p = who %}{% include "teacher_card.html" %}{% endwith %}{% endif %}
+
 {% if view == 'stats' %}
 {% include "stats.html" %}
 {% else %}

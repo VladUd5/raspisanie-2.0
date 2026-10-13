@@ -254,6 +254,18 @@ footer { max-width: 1240px; margin: 0 auto; padding: 0 20px 28px; display: flex;
 .progress i { flex: 1; height: 6px; border-radius: 999px; background: var(--sunk); overflow: hidden; }
 .progress em { display: block; height: 100%; background: var(--brand); }
 
+.who-card { display: flex; flex-direction: column; gap: 12px; }
+.who-card > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.who-card > summary::-webkit-details-marker { display: none; }
+.who-card > summary > span:first-child { display: flex; flex-direction: column; gap: 2px; }
+.who-more { flex: none; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; font-weight: 500; }
+.who-more::after { content: " ▾"; color: var(--muted); }
+.who-card[open] .who-more::after { content: " ▴"; }
+.who-card:not([open]) { padding: 12px 16px; }
+.who { margin: 0; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px 8px; font-size: 14px; }
+.who dt { color: var(--muted); padding-top: 1px; }
+.who dd { margin: 0; }
+
 /* ── подписка ─────────────────────────────────────────── */
 .cal { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
 .cal p { margin: 0 0 10px; color: var(--ink-2); }

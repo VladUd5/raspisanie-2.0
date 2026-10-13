@@ -24,7 +24,7 @@
     <dl>
       <dt>Вид</dt><dd>{{ l.type_title }}{% if l.subgroup %}, подгруппа {{ l.subgroup }}{% endif %}</dd>
       {% if l.rooms %}<dt>Аудитория</dt><dd>{% for b, r in l.rooms %}<a href="{{ room_url(b, r) }}">{{ b }}, {{ r }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
-      {% if l.teachers %}<dt>{{ 'Преподаватели' if l.teachers|length > 1 else 'Преподаватель' }}</dt><dd>{% for t in l.teachers %}<a href="{{ teacher_url(t) }}">{{ t }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+      {% if l.teachers %}<dt>{{ 'Преподаватели' if l.teachers|length > 1 else 'Преподаватель' }}</dt><dd>{% for t in l.teachers %}{% set pt = person(t) %}<a href="{{ teacher_url(t) }}">{{ t }}</a>{% if pt and pt.department %}<span class="muted small"> · каф. «{{ pt.department }}»</span>{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}</dd>{% endif %}
       {% if l.forms %}<dt>Форма обучения</dt><dd>{{ l.forms|join(', ')|lower }}</dd>{% endif %}
       <dt>{{ 'Группы' if l.groups|length > 1 else 'Группа' }}</dt><dd>{% for g in l.groups %}<a href="{{ group_url(g) }}">{{ g }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</dd>
       {% if l.week_mark %}<dt>Неделя</dt><dd>{{ l.week_mark }}</dd>{% endif %}

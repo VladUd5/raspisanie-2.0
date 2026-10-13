@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+import directory
 from collector import read_status
 from config import feedback_db_path, public_url, reports_per_hour, site_title
 from feedback import store as feedback
@@ -81,9 +82,20 @@ HELPERS = dict(ddmm=_ddmm, when_full=_when_full, when_day=_when_day, plural=_plu
                short_days=SHORT_DAYS, day_names=DAYS, content=week.content)
 
 
+def _person(name: str) -> dict | None:
+    d = directory.get()
+    return d.person(name) if d else None
+
+
+def _directory_date() -> str:
+    d = directory.get()
+    ts = d.data.get("fetched_at", "") if d else ""
+    return f"{ts[8:10]}.{ts[5:7]}.{ts[:4]}" if ts else ""
+
+
 def render(request: Request, name: str, status_code: int = 200, **ctx) -> HTMLResponse:
     ctx.update(site_title=site_title(), checked=_checked(), group_url=group_url, teacher_url=teacher_url,
-               room_url=room_url, discipline_url=discipline_url, change_label=CHANGE_LABEL, feedback_kinds=feedback.KINDS, **HELPERS)
+               room_url=room_url, discipline_url=discipline_url, person=_person, change_label=CHANGE_LABEL, feedback_kinds=feedback.KINDS, **HELPERS)
     resp = templates.TemplateResponse(request, name, ctx, status_code=status_code)
     resp.headers["Cache-Control"] = "no-cache"
     return resp
@@ -167,7 +179,8 @@ def _entity(request: Request, kind: str, key, title: str, subtitle: str, ics_pat
                   current_monday=current, public_url=public_url(), legend=week.LEGEND,
                   up=week.upcoming(w), show_day=_show_day(w, day_param), kind_title=KIND_TITLE[kind],
                   forms=forms if kind != "group" else [], form=form, form_codes=week.FORMS, view=view, st=st,
-                  type_short=stats.TYPE_SHORT)
+                  type_short=stats.TYPE_SHORT, who=_person(key) if kind == "teacher" else None,
+                  directory_date=_directory_date())
 
 
 def _xlsx(st, kind: str, title: str) -> Response:
@@ -243,7 +256,9 @@ def group_page(request: Request, name: str, week: str = "", sub: str = "", day: 
 
 @app.get("/t/{name:path}", response_class=HTMLResponse)
 def teacher_page(request: Request, name: str, week: str = "", day: str = "", form: str = ""):
-    return _entity(request, "teacher", name, name, "Преподаватель", teacher_url(name) + ".ics", week, "", day, form)
+    p = _person(name)
+    sub = "Преподаватель" + (f" · {p['subtitle']}" if p and p["subtitle"] else "")
+    return _entity(request, "teacher", name, name, sub, teacher_url(name) + ".ics", week, "", day, form)
 
 
 @app.get("/r/{building}/{room:path}", response_class=HTMLResponse)

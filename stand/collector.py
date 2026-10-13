@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import directory
 from config import (collect_timeout_s, db_path, parser_url, request_path, schedule_url, snapshots_dir,
                     status_path)
 from etl.collect import CollectError, collect
@@ -112,6 +113,9 @@ def run_forever(times: list[str], poll_s: float = 15) -> None:
     errors = load_db()
     for name, err in errors:
         print(f"снапшот {name} не загружен: {err}", flush=True)
+    msg = directory.refresh()
+    if msg:
+        print(msg, flush=True)
     due = next_run(now(), times)
     print(f"collector: сбор в {', '.join(times)}; ближайший {due:%d.%m %H:%M}", flush=True)
     while True:
@@ -123,6 +127,9 @@ def run_forever(times: list[str], poll_s: float = 15) -> None:
         elif now() >= due:
             print(run_once()["message"], flush=True)
             due = next_run(now(), times)
+            msg = directory.refresh()                    # не чаще раза в сутки
+            if msg:
+                print(msg, flush=True)
         time.sleep(poll_s)
 
 
@@ -131,6 +138,8 @@ if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "run"
     if cmd == "once":
         print(run_once("вручную")["message"])
+    elif cmd == "directory":
+        print(directory.refresh(0))
     elif cmd == "load":
         for name, err in load_db():
             print(f"снапшот {name} не загружен: {err}")

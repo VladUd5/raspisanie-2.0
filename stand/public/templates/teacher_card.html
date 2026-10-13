@@ -1,0 +1,25 @@
+{# Карточка «Где найти» на странице преподавателя: p — запись справочника (directory.Directory.person) #}
+{% set dep = p.dept %}
+<details class="card who-card" {% if view == 'stats' %}open{% endif %}>
+  <summary>
+    <span><b>{{ p.full_name }}</b><span class="muted small">{% if dep %}Кафедра «{{ dep.name }}»{% else %}{{ p.subtitle }}{% endif %}</span></span>
+    <span class="who-more">Контакты</span>
+  </summary>
+  {% if dep and dep.site %}<a class="btn" href="{{ dep.site }}" rel="noopener" target="_blank" style="align-self: flex-start">Страница кафедры</a>{% endif %}
+  <dl class="who">
+    {% if dep %}
+    <dt><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg><span class="sr">Кафедра</span></dt>
+    <dd>Кафедра «{{ dep.name }}»{% if dep.teacher_rooms %}<br><span class="muted">преподавательская — ауд. {{ dep.teacher_rooms[:3]|join(', ') }}</span>{% endif %}</dd>
+    {% if dep.phone %}
+    <dt><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg><span class="sr">Телефон</span></dt>
+    <dd>{% for ph in dep.phone.split(',') %}<a href="tel:{{ ph|replace(' ', '')|replace('(', '')|replace(')', '')|replace('-', '') }}">{{ ph.strip() }}</a>{% if not loop.last %}, {% endif %}{% endfor %} <span class="muted">— кафедра</span></dd>
+    {% endif %}
+    {% endif %}
+    {% if p.email or (dep and dep.email) %}
+    <dt><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="sr">Почта</span></dt>
+    <dd>{% if p.email %}<a href="mailto:{{ p.email }}">{{ p.email }}</a>{% if dep and dep.email %}<br>{% endif %}{% endif %}{% if dep and dep.email %}<span class="muted">кафедра:</span> <a href="mailto:{{ dep.email }}">{{ dep.email }}</a>{% endif %}</dd>
+    {% endif %}
+  </dl>
+  {% if not dep %}<p class="muted small">Кафедра на сайте вуза не указана.</p>{% endif %}
+  <p class="muted small" style="margin:0">Контакты — с официального сайта вуза{% if directory_date %}, проверены {{ directory_date }}{% endif %}.</p>
+</details>
