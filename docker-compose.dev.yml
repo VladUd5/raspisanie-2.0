@@ -1,6 +1,8 @@
-# Пробросить порт парсера на localhost — для запуска стенда без Docker:
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up parser
-#   PARSER_URL=http://localhost:8080 streamlit run stand/app.py
+# Для разработки без Docker:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d parser
+#   cd stand && PARSER_URL=http://localhost:8080 python collector.py once
+#   streamlit run stand/app.py          # версия для руководства
+#   cd stand && uvicorn public.app:app  # сайт для студентов
 services:
   parser:
     ports:

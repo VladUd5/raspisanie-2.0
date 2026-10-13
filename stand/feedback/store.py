@@ -44,8 +44,14 @@ def connect(path: Path | str) -> sqlite3.Connection:
     return conn
 
 
+def _local_now() -> datetime:
+    """Время по часовому поясу сайта (в контейнере системное время — UTC)."""
+    from semester import now
+    return now()
+
+
 def _now(at: datetime | None) -> str:
-    return (at or datetime.now().astimezone()).isoformat(timespec="seconds")
+    return (at or _local_now()).isoformat(timespec="seconds")
 
 
 def _salt(conn: sqlite3.Connection) -> str:
@@ -61,7 +67,7 @@ def _salt(conn: sqlite3.Connection) -> str:
 def add_report(conn: sqlite3.Connection, fields: dict, ip: str, per_hour: int = 5,
                at: datetime | None = None) -> int | None:
     """→ id сообщения или None, если с этого адреса за час уже было per_hour сообщений."""
-    at = at or datetime.now().astimezone()
+    at = at or _local_now()
     ip_hash = hashlib.sha256((_salt(conn) + (ip or "")).encode()).hexdigest()
     hour_ago = (at - timedelta(hours=1)).isoformat(timespec="seconds")
     with conn:

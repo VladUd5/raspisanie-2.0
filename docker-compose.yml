@@ -2,6 +2,19 @@
 # не может получить допустимое имя (только латиница, цифры, «-», «_»).
 name: raspisanie
 
+# Настройки — в файле .env рядом (образец: .env.example). Без него работают значения по умолчанию.
+x-stand: &stand
+  build:
+    context: .
+    dockerfile: stand/Dockerfile
+  image: raspisanie-stand
+  env_file:
+    - path: .env
+      required: false
+  volumes:
+    - ./data:/app/data
+  restart: unless-stopped
+
 services:
   parser:
     build:
@@ -11,17 +24,41 @@ services:
     command: bash -c "sed -i 's/HOST=.*/HOST=0.0.0.0/' /app/.env && /app/parser_server"
     restart: unless-stopped
 
-  stand:
-    build:
-      context: .
-      dockerfile: stand/Dockerfile
-    environment:
-      PARSER_URL: http://parser:8080
-      COLLECT_TIMEOUT_S: "900"
-    volumes:
-      - ./data:/app/data
-    ports:
-      - "8501:8501"
+  # единственный писатель schedule.db: сбор по расписанию и по запросу из версии руководства
+  collector:
+    <<: *stand
+    command: ["python", "collector.py", "run"]
     depends_on:
       - parser
+
+  # сайт для студентов и преподавателей
+  public:
+    <<: *stand
+    command: ["uvicorn", "public.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2",
+              "--proxy-headers", "--forwarded-allow-ips", "*"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 30s
+    depends_on:
+      - collector
+
+  # версия для руководства (Streamlit) по адресу /rukovodstvo
+  staff:
+    <<: *stand
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request, os; urllib.request.urlopen('http://localhost:8501/' + os.environ.get('STAFF_BASE_PATH', 'rukovodstvo') + '/_stcore/health')\""]
+      interval: 30s
+    depends_on:
+      - collector
+
+  # единая точка входа: /  → public, /rukovodstvo → staff
+  proxy:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    depends_on:
+      - public
+      - staff
     restart: unless-stopped

@@ -5,3 +5,9 @@ __pycache__/
 data/schedule.db
 data/snapshots/*.tmp
 data/snapshots/.collect.lock
+data/schedule.db-*
+data/feedback.db*
+data/status.json
+data/status.tmp
+data/collect.request
+.env
