@@ -21,6 +21,9 @@ TYPE_SHORT = {"лекция": "ЛЕК", "практика": "ПР", "лабор�
               "зачёт": "ЗАЧЁТ", "экзамен": "ЭКЗАМЕН", "не определён": "ЗАН"}
 TYPE_TITLE = {"не определён": "Занятие", "": "Занятие"}
 COLORS = 10                                   # цветов для дисциплин в style.css: .c0 … .c9
+# Формы обучения: код для адреса (?form=), короткая пометка на карточке, порядок в переключателе.
+FORMS = {"Очная": ("och", "очн."), "Очно-заочная": ("ochzaoch", "оч.-заочн."), "Заочная": ("zaoch", "заочн.")}
+FORM_BY_CODE = {code: name for name, (code, _) in FORMS.items()}
 
 
 @dataclass
@@ -39,6 +42,7 @@ class Lesson:
     change: dict | None = None    # {"kind", "before", "after", "day"}
     cancelled: bool = False
     day_idx: int = 0              # для занятий без даты — день недели
+    forms: tuple = ()             # формы обучения групп занятия («Очная», «Заочная»…)
 
     @property
     def type_short(self) -> str:
@@ -51,6 +55,11 @@ class Lesson:
     @property
     def pair(self) -> int | None:
         return PAIRS.get(self.time_from)
+
+    @property
+    def form_marks(self) -> list[str]:
+        """Пометки форм, кроме очной: «заочн.», «оч.-заочн.»."""
+        return [FORMS[f][1] for f in FORMS if f in self.forms and f != "Очная"]
 
 
 @dataclass
@@ -136,6 +145,12 @@ def select(items: pd.DataFrame, kind: str, key) -> pd.DataFrame:
     if kind == "teacher":
         return items[[key in t for t in items["teachers"]]]
     return items[[key in r for r in items["rooms"]]]
+
+
+def forms_of(rows: pd.DataFrame) -> list[str]:
+    """Формы обучения в строках — в порядке FORMS."""
+    present = set(rows["study_form"])
+    return [f for f in FORMS if f in present] + sorted(present - set(FORMS))
 
 
 def colors(rows: pd.DataFrame) -> dict[str, int]:
@@ -265,9 +280,11 @@ def _merge(picked: list[tuple]) -> dict:
             les = seen[key]
             if r.group_name not in les.groups:
                 les.groups = tuple(sorted(les.groups + (r.group_name,)))
+            if r.study_form not in les.forms:
+                les.forms = les.forms + (r.study_form,)
             continue
         les = Lesson(r.time_from, r.time_to, r.lesson_type, r.discipline, r.teachers, r.rooms, (r.group_name,),
-                     int(r.subgroup), mark, day_idx=int(r.day_idx))
+                     int(r.subgroup), mark, day_idx=int(r.day_idx), forms=(r.study_form,))
         seen[key] = les
         out.setdefault(d, []).append(les)
     return out
@@ -369,7 +386,8 @@ def _cancelled(changes: pd.DataFrame, rows: pd.DataFrame, m: date, who: tuple | 
         types = {t for t, _ in parsed}
         les = Lesson(r.time_from, "", types.pop() if len(types) == 1 else "",
                      "; ".join(dict.fromkeys(x for _, x in parsed if x)), (), (), (r.group_name,),
-                     int(r.subgroup or 0), date=d.isoformat(), cancelled=True)
+                     int(r.subgroup or 0), date=d.isoformat(), cancelled=True,
+                     forms=(r.study_form,) if getattr(r, "study_form", "") else ())
         les.change = {"kind": "removed", "before": r.before, "after": "", "day": r.day}
         out.append(les)
     return out

@@ -88,11 +88,13 @@ footer { max-width: 1240px; margin: 0 auto; padding: 0 20px 28px; display: flex;
 .tag.now { background: var(--brand); color: var(--brand-ink); }
 .tag.change { background: var(--warn-strong); color: #FFFFFF; }
 .tag.added { background: var(--brand-soft); color: var(--brand-soft-ink); }
+.tag.form { background: var(--surface); color: var(--ink-2); border: 1px solid var(--line); text-transform: none; letter-spacing: 0; }
+.l-type .tag:not(.form) { margin-left: auto; }
 .note { padding: 12px 14px; border-radius: 12px; background: var(--warn); color: var(--warn-ink); }
 .ok { padding: 12px 14px; border-radius: 12px; background: var(--brand-soft); color: var(--brand-soft-ink); font-weight: 500; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
 .card h2 { font-size: 17px; margin-bottom: 10px; }
-.seg { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.seg { display: inline-flex; flex-wrap: wrap; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .seg a { padding: 6px 12px; border-radius: 7px; color: var(--ink); font-weight: 500; }
 .seg a:hover { text-decoration: none; background: var(--sunk); }
 .seg a[aria-current] { background: var(--brand); color: var(--brand-ink); }
@@ -167,7 +169,6 @@ footer { max-width: 1240px; margin: 0 auto; padding: 0 20px 28px; display: flex;
 .ls.has-change > summary { outline: 2px solid var(--warn-strong); outline-offset: -2px; }
 .ls .l-time { display: none; }
 .ls .l-type { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ci, var(--muted)); }
-.ls .l-type .tag { margin-left: auto; }
 .ls .l-disc { font-weight: 600; font-size: 14px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .ls .l-meta { margin-top: auto; padding-top: 2px; font-size: 12.5px; color: var(--ink-2); }
 .ls.cancelled > summary { background: transparent; border: 1px dashed var(--line); color: var(--muted); }
@@ -264,8 +265,8 @@ footer { max-width: 1240px; margin: 0 auto; padding: 0 20px 28px; display: flex;
     border: 0; border-radius: 12px; background: var(--surface); font-size: 12px; font-weight: 500; }
   .wk-day small { display: none; }
   .wk-day i { display: block; width: 5px; height: 5px; margin-top: 3px; border-radius: 999px; background: var(--line); }
-  .wk-day i.has { background: var(--muted); }
-  .wk-day i.chg { background: var(--warn-strong); }
+  .wk-day i.dot-has { background: var(--muted); }
+  .wk-day i.dot-chg { background: var(--warn-strong); }
   .wk-day.is-today { background: var(--today); }
   .wk-day.is-today b { min-width: 0; height: auto; padding: 0; background: none; color: var(--brand); }
   .wk-day[aria-current] { background: var(--brand); color: var(--brand-ink); }

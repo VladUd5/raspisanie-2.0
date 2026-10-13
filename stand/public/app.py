@@ -135,13 +135,19 @@ def _parse_week(value: str) -> date | None:
 
 
 def _entity(request: Request, kind: str, key, title: str, subtitle: str, ics_path: str, week_param: str,
-            sub_param: str = "", day_param: str = ""):
+            sub_param: str = "", day_param: str = "", form_param: str = ""):
     data = store.get()
     if data is None:
         return _no_data(request)
     rows = week.select(data.items, kind, key)
     if rows.empty:
         return _not_found(request, f"{KIND_TITLE[kind]} «{title}»")
+    forms = week.forms_of(rows)
+    form = week.FORM_BY_CODE.get(form_param) if kind != "group" else None
+    if form and form in forms and len(forms) > 1:
+        rows = rows[rows["study_form"] == form]
+    else:
+        form = None
     current = week.default_monday(rows, today())
     m = _parse_week(week_param) or current
     w = week.build(data.items, rows, m, data.changes, who=(kind, key))
@@ -153,7 +159,8 @@ def _entity(request: Request, kind: str, key, title: str, subtitle: str, ics_pat
     return render(request, "entity.html", kind=kind, title=title, subtitle=subtitle, week=w, ics_path=ics_path,
                   subgroups=subgroups, sub=sub, path=request.url.path, snapshot_id=data.snapshot_id,
                   current_monday=current, public_url=public_url(), colors=week.colors(rows),
-                  up=week.upcoming(w), show_day=_show_day(w, day_param), kind_title=KIND_TITLE[kind])
+                  up=week.upcoming(w), show_day=_show_day(w, day_param), kind_title=KIND_TITLE[kind],
+                  forms=forms if kind != "group" else [], form=form, form_codes=week.FORMS)
 
 
 def _show_day(w: week.Week, value: str) -> int:
@@ -207,13 +214,14 @@ def group_page(request: Request, name: str, week: str = "", sub: str = "", day: 
 
 
 @app.get("/t/{name:path}", response_class=HTMLResponse)
-def teacher_page(request: Request, name: str, week: str = "", day: str = ""):
-    return _entity(request, "teacher", name, name, "Преподаватель", teacher_url(name) + ".ics", week, "", day)
+def teacher_page(request: Request, name: str, week: str = "", day: str = "", form: str = ""):
+    return _entity(request, "teacher", name, name, "Преподаватель", teacher_url(name) + ".ics", week, "", day, form)
 
 
 @app.get("/r/{building}/{room:path}", response_class=HTMLResponse)
-def room_page(request: Request, building: str, room: str, week: str = "", day: str = ""):
-    return _entity(request, "room", (building, room), f"{building}, ауд. {room}", "Аудитория", "", week, "", day)
+def room_page(request: Request, building: str, room: str, week: str = "", day: str = "", form: str = ""):
+    return _entity(request, "room", (building, room), f"{building}, ауд. {room}", "Аудитория", "", week, "", day,
+                   form)
 
 
 @app.get("/changes", response_class=HTMLResponse)

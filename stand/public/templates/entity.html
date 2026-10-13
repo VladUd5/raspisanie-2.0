@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ title }} — расписание{% endblock %}
+{% set fcode = form_codes[form][0] if form else '' %}
 {% macro href(w=week.monday, d=none) -%}
-?week={{ w.isoformat() }}{% if sub %}&amp;sub={{ sub }}{% endif %}{% if d is not none %}&amp;day={{ d }}{% endif %}
+?week={{ w.isoformat() }}{% if sub %}&amp;sub={{ sub }}{% endif %}{% if fcode %}&amp;form={{ fcode }}{% endif %}{% if d is not none %}&amp;day={{ d }}{% endif %}
 {%- endmacro %}
 {% block main %}
 <section class="ent" data-recent="{{ title }}|{{ path }}|{{ subtitle }}">
@@ -19,6 +20,12 @@
     <nav class="seg" aria-label="Подгруппа">
       <a href="?week={{ week.monday.isoformat() }}" {% if not sub %}aria-current="true"{% endif %}>Все</a>
       {% for s in subgroups %}<a href="?week={{ week.monday.isoformat() }}&amp;sub={{ s }}" {% if sub == s %}aria-current="true"{% endif %}>Подгр. {{ s }}</a>{% endfor %}
+    </nav>
+    {% endif %}
+    {% if forms|length > 1 %}
+    <nav class="seg" aria-label="Форма обучения">
+      <a href="{{ path }}" {% if not form %}aria-current="true"{% endif %}>Все формы</a>
+      {% for f in forms %}<a href="?form={{ form_codes[f][0] if f in form_codes else '' }}" {% if form == f %}aria-current="true"{% endif %}>{{ f }}</a>{% endfor %}
     </nav>
     {% endif %}
     {% if ics_path %}
@@ -40,7 +47,7 @@
       <span>{% if week.dated_only %}неделя сессии{% elif week.number %}{{ week.number }}-я неделя семестра{% else %}вне семестра{% endif %}</span>
     </div>
     {% if week.next %}<a class="arrow" href="{{ href(week.next) }}" aria-label="Следующая неделя">{% else %}<a class="arrow" aria-disabled="true" aria-label="Следующей недели нет">{% endif %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
-    {% if week.monday != current_monday %}<a class="btn" href="{{ path }}{% if sub %}?sub={{ sub }}{% endif %}">К текущей неделе</a>{% endif %}
+    {% if week.monday != current_monday %}<a class="btn" href="{{ path }}{% if sub %}?sub={{ sub }}{% elif fcode %}?form={{ fcode }}{% endif %}">К текущей неделе</a>{% endif %}
   </div>
   {% if week.dated_only %}<span class="chip">Заочное обучение</span>
   {% elif week.week_type == 'numerator' %}<span class="chip up"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 5l7 9H5z"/></svg>Верхняя неделя</span>
@@ -85,7 +92,7 @@
   {% for day in week.days %}{% set i = loop.index0 %}
   <a class="wk-day{% if day.is_today %} is-today{% endif %}" href="{{ href(d=i) }}#wk" data-day="{{ i }}" style="--c: {{ i + 2 }}" {% if i == show_day %}aria-current="true"{% endif %}>
     <span>{{ day.short|capitalize }}</span><b>{{ day.date.day }}</b>{% if day.is_today %}<small>сегодня</small>{% endif %}
-    <i class="{% if day.lessons|selectattr('change')|rejectattr('cancelled')|list %}chg{% elif day.lessons %}has{% endif %}"></i>
+    <i class="{% if day.lessons|selectattr('change')|rejectattr('cancelled')|list %}dot-chg{% elif day.lessons %}dot-has{% endif %}"></i>
   </a>
   {% endfor %}
   {% for day in week.days %}{% if not day.lessons %}<div class="wk-none" data-d="{{ loop.index0 }}">{% if day.is_today %}Сегодня{% else %}В этот день{% endif %} занятий нет</div>{% endif %}{% endfor %}

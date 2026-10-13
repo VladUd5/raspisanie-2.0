@@ -129,3 +129,35 @@ def test_day_and_subgroup_params_are_safe(client):
     for params in ({"day": "9"}, {"day": "x"}, {"sub": "7"}, {"sub": "-1"}, {"day": "2", "sub": "1"}):
         assert client.get("/g/Б-Э-101", params=params).status_code == 200
     assert 'data-show="2"' in client.get("/g/Б-Э-101", params={"day": "2"}).text
+
+
+@pytest.fixture
+def mixed_client(tmp_path, monkeypatch, make_snapshot):
+    """Шалаева ведёт и у очников, и у заочников."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    m = monday(today())
+    zao = zao_week(m) + [("З-ЭК-51", (m + timedelta(days=3)).isoformat(), "12:00", "лек. Право Шалаева Н.В. 102")]
+    make_snapshot("a", (today() - timedelta(days=1)).isoformat() + "T03:00:00+04:00", OCHNO, zao)
+    conn = connect(tmp_path / "schedule.db")
+    ensure_loaded(conn, tmp_path / "snapshots", DICTIONARY_DIR)
+    conn.close()
+    from public import app as app_module
+    from public.data import Store
+    monkeypatch.setattr(app_module, "store", Store())
+    return TestClient(app_module.app)
+
+
+def test_teacher_form_switch_and_marks(mixed_client):
+    teacher = next(e for e in mixed_client.get("/api/search", params={"q": "шалаева"}).json()
+                   if e["kind"] == "преподаватель")
+    page = mixed_client.get(teacher["url"])
+    assert page.status_code == 200
+    assert "Все формы" in page.text and "?form=zaoch" in page.text and "?form=och" in page.text
+    assert 'class="tag form">заочн.' in page.text and "Форма обучения" in page.text
+    zao = mixed_client.get(teacher["url"], params={"form": "zaoch"}).text
+    assert "Право" in zao and "История России" not in zao
+    och = mixed_client.get(teacher["url"], params={"form": "och"}).text
+    assert "История России" in och and "Право" not in och and "form=och" in och
+    assert mixed_client.get(teacher["url"], params={"form": "мусор"}).status_code == 200
+    # на странице группы переключателя нет
+    assert "Все формы" not in mixed_client.get("/g/Б-Э-101").text
