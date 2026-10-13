@@ -6,7 +6,8 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 APP = str(Path(__file__).parent.parent / "stand" / "app.py")
-PAGES = ["overview", "teachers", "rooms", "disciplines", "groups", "infographics", "quality", "spellings", "export"]
+PAGES = ["summary", "teachers", "rooms", "disciplines", "groups", "infographics", "changes", "reports", "export",
+         "history", "quality", "spellings"]
 
 
 @pytest.fixture
@@ -48,15 +49,19 @@ def test_empty_database_shows_hint(tmp_path, monkeypatch):
     at = AppTest.from_file(APP, default_timeout=60)
     at.run()
     assert not at.exception
-    assert any("Данных пока нет" in i.value for i in at.info)
+    assert any("не загружено" in i.value for i in at.info)
 
 
-def test_collect_without_parser_shows_error(env):
+def test_check_now_button_requests_collection(env):
     at = AppTest.from_file(APP, default_timeout=60)
+    at.run()
+    at.switch_page("views/history.py")
     at.run()
     at.button[0].click()
     at.run()
-    assert any("Сбор не удался" in e.value for e in at.error)
+    assert not at.exception, at.exception
+    assert any("Запрос отправлен" in s.value for s in at.success)
+    assert (env / "collect.request").exists()
 
 
 def test_sidebar_filter_changes_selection(env):
@@ -64,13 +69,29 @@ def test_sidebar_filter_changes_selection(env):
     # проверяем на стартовой странице, где боковая панель строится всегда.
     at = AppTest.from_file(APP, default_timeout=60)
     at.run()
-    selected = lambda: next(m for m in at.metric if m.label == "Занятий в текущей выборке").value
-    assert selected() == "10"
+    groups = lambda: next(m for m in at.metric if m.label == "Групп").value
+    assert groups() == "3"
     institutes = next(m for m in at.get("multiselect") if m.key == "f_institutes")
     institutes.select("Институт инженерии и робототехники")
     at.run()
     assert not at.exception
-    assert selected() == "2"
+    assert groups() == "1"
+
+
+def test_report_status_can_be_changed(env):
+    from feedback import store
+    conn = store.connect(env / "feedback.db")
+    rid = store.add_report(conn, {"kind": "room", "text": "ауд. 314 занята", "group_name": "Б-Э-101"}, "ip")
+    at = AppTest.from_file(APP, default_timeout=60)
+    at.run()
+    at.switch_page("views/reports.py")
+    at.run()
+    assert any("ауд. 314 занята" in m.value for m in at.markdown)
+    at.selectbox(key=f"st_{rid}").set_value("fixed")
+    at.button(key=f"save_{rid}").click()
+    at.run()
+    assert not at.exception, at.exception
+    assert store.list_reports(conn)[0]["status"] == "fixed"
 
 
 def test_full_time_form_is_selected_by_default(env):
@@ -87,35 +108,16 @@ def _later_snapshot(src: Path, dst: Path, stamp: str = "2026-10-08T09:00:00+03:0
     return dst
 
 
-def test_successful_collect_selects_new_snapshot(env, monkeypatch, mini_snapshot_path):
-    """Успешный сбор не падает и выбирает новый снапшот (раньше — исключение
-    StreamlitWidgetAlreadyInstantiatedError на каждом успешном сборе)."""
-    import etl.collect
-
-    def fake_collect(parser_url, schedule_url, snapshots_dir, timeout_s=900):
-        return _later_snapshot(mini_snapshot_path, Path(snapshots_dir) / "2026-10-08_090000.json")
-
-    monkeypatch.setattr(etl.collect, "collect", fake_collect)
-    at = AppTest.from_file(APP, default_timeout=60)
-    at.run()
-    at.button[0].click()
-    at.run()
-    assert not at.exception, at.exception
-    at.run()
-    selected = at.selectbox(key="snapshot_id")
-    assert len(selected.options) == 2
-    assert selected.value == 2          # id нового снапшота; старый — 1
-
-
 def test_snapshot_added_while_running_is_picked_up(env, mini_snapshot_path):
     """Файл, положенный в data/snapshots во время работы, появляется без перезапуска."""
     at = AppTest.from_file(APP, default_timeout=60)
     at.run()
-    assert len(at.selectbox(key="snapshot_id").options) == 1
     _later_snapshot(mini_snapshot_path, env / "snapshots" / "2026-10-08_090000.json")
     at.run()
-    assert not at.exception
-    assert len(at.selectbox(key="snapshot_id").options) == 2
+    at.switch_page("views/history.py")
+    at.run()
+    assert not at.exception, at.exception
+    assert len(at.dataframe[0].value) == 2
 
 
 def test_export_orders_days_by_week(env):
@@ -128,26 +130,21 @@ def test_export_orders_days_by_week(env):
     assert days.index("понедельник") < days.index("вторник")
 
 
-def test_broken_dictionary_during_collect_shows_error(env, monkeypatch, mini_snapshot_path):
-    """Битый словарь после сбора — сообщение, а не трейсбек; снапшот остаётся на диске."""
-    import etl.collect
+def test_broken_dictionary_shows_warning(env, monkeypatch, mini_snapshot_path):
+    """Битый словарь — предупреждение, а не трейсбек; снапшот остаётся на диске."""
     import etl.load
     from etl.dictionary import DictionaryError
-
-    def fake_collect(parser_url, schedule_url, snapshots_dir, timeout_s=900):
-        return _later_snapshot(mini_snapshot_path, Path(snapshots_dir) / "2026-10-08_090000.json")
 
     def broken_dictionary(*args, **kwargs):
         raise DictionaryError("groups.csv, строка 3: лишние поля")
 
-    monkeypatch.setattr(etl.collect, "collect", fake_collect)
     at = AppTest.from_file(APP, default_timeout=60)
     at.run()
     monkeypatch.setattr(etl.load, "load_dictionary", broken_dictionary)
-    at.button[0].click()
+    _later_snapshot(mini_snapshot_path, env / "snapshots" / "2026-10-08_090000.json")
     at.run()
     assert not at.exception, at.exception
-    assert any("groups.csv" in e.value for e in at.error)
+    assert any("groups.csv" in w.value for w in at.warning)
     assert (env / "snapshots" / "2026-10-08_090000.json").exists()
 
 
@@ -201,6 +198,8 @@ def test_infographics_distribution_switch(env, what):
     assert any("Медиана" in str(df.value) for df in at.dataframe)    # сводка распределения
 
 
-def test_navigation_has_analytics_section(env):
+def test_navigation_hides_service_pages(env):
+    """Служебные страницы — в отдельном разделе после основных; демо-страницы «Обзор» нет."""
     src = Path(APP).read_text(encoding="utf-8")
-    assert '"Аналитика": [' in src and src.index("views/infographics.py") < src.index("views/quality.py")
+    assert '"Служебное": [' in src and src.index("views/export.py") < src.index('"Служебное"') < src.index("views/quality.py")
+    assert "overview" not in src

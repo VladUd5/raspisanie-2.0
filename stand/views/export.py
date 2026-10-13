@@ -7,8 +7,8 @@ from analytics import queries as q
 from labels import WEEK_TYPES, ru
 from ui import filters
 
-st.title("Данные и экспорт")
-st.caption("Все занятия текущей выборки после очистки — одна строка на занятие. Выгрузка учитывает фильтры.")
+st.title("Выгрузка")
+st.caption("Все занятия по фильтрам из боковой панели — одна строка на занятие. Скачать можно в CSV или Excel.")
 ctx = filters.current()
 if filters.need_data(ctx):
     st.stop()

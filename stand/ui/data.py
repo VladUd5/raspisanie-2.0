@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import pandas as pd
 import streamlit as st
 
+from analytics import current as cur
 from analytics import queries as q
 from config import db_path
 from etl.load import connect
@@ -22,8 +23,10 @@ class Frames:
 
 
 def db_key() -> tuple[str, float]:
+    """В режиме WAL запись сначала попадает в файл -wal: версия — по обоим файлам."""
     p = db_path()
-    return str(p), (p.stat().st_mtime if p.exists() else 0.0)
+    wal = p.with_name(p.name + "-wal")
+    return str(p), max(x.stat().st_mtime if x.exists() else 0.0 for x in (p, wal))
 
 
 def conn():
@@ -66,6 +69,37 @@ def _spellings(db: str, version: float, snapshot_id: int) -> tuple[pd.DataFrame,
         c.close()
 
 
+@st.cache_data(show_spinner="Читаю актуальное расписание…")
+def _current(db: str, version: float) -> tuple[Frames, int, str] | None:
+    c = connect(db)
+    try:
+        s = cur.load(c)
+    finally:
+        c.close()
+    if s is None:
+        return None
+    return Frames(s.lessons, s.teachers, s.rooms), s.snapshot_id, s.collected_at
+
+
+@st.cache_data(show_spinner=False)
+def _changes(db: str, version: float) -> pd.DataFrame:
+    c = connect(db)
+    try:
+        return cur.changes(c)
+    finally:
+        c.close()
+
+
+def current() -> tuple[Frames, int, str] | None:
+    """Актуальное расписание (последний опубликованный снапшот + архив недель заочников),
+    id последнего опубликованного снапшота и время его сбора; None — данных нет."""
+    return _current(*db_key())
+
+
+def changes() -> pd.DataFrame:
+    return _changes(*db_key())
+
+
 def snapshots() -> pd.DataFrame:
     return _snapshots(*db_key())
 
@@ -80,3 +114,8 @@ def quality(snapshot_id: int) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 def spellings(snapshot_id: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     return _spellings(*db_key(), snapshot_id)
+
+
+CHANGE_KINDS = {"added": "добавлено", "removed": "отменено", "changed": "изменено", "moved": "перенесено",
+                "week_published": "новая неделя сессии", "week_removed": "неделя снята с сайта",
+                "major_update": "новое расписание формы"}

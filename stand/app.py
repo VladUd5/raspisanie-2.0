@@ -1,13 +1,14 @@
-"""Лабораторный стенд «Расписание 2.0»: сбор → очистка → анализ."""
+"""Расписание: версия для руководства (нагрузка, аудитории, изменения, сообщения пользователей)."""
 import sqlite3
 
 import streamlit as st
 
-from config import db_path, snapshots_dir
+from config import db_path, feedback_db_path, site_title, snapshots_dir
+from feedback import store as feedback
 from etl.load import connect, ensure_loaded
 from ui import filters
 
-st.set_page_config(page_title="Расписание 2.0", page_icon="📅", layout="wide")
+st.set_page_config(page_title=f"{site_title()} · руководство", page_icon="📅", layout="wide")
 
 
 def _load_new_snapshots() -> list[str]:
@@ -34,17 +35,32 @@ for warning in _load_new_snapshots():
 # Страницы лежат в views/, а не в pages/: папку pages/ рядом с точкой входа
 # Streamlit подхватывает сам (старый режим многостраничности), и тогда прямая
 # ссылка на страницу открывает её без app.py — без фильтров в боковой панели.
+def _new_reports() -> int:
+    try:
+        conn = feedback.connect(feedback_db_path())
+        try:
+            return feedback.counts(conn)["new"]
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return 0
+
+
+n_new = _new_reports()
 pages = st.navigation({
     "Расписание": [
-        st.Page("views/overview.py", title="Обзор и пайплайн", icon="🔄", default=True),
+        st.Page("views/summary.py", title="Сводка", icon="🏠", default=True),
         st.Page("views/teachers.py", title="Преподаватели", icon="👩‍🏫"),
         st.Page("views/rooms.py", title="Аудитории", icon="🚪"),
         st.Page("views/disciplines.py", title="Дисциплины", icon="📚"),
         st.Page("views/groups.py", title="Группы", icon="👥"),
-        st.Page("views/export.py", title="Данные и экспорт", icon="⬇️"),
-    ],
-    "Аналитика": [
         st.Page("views/infographics.py", title="Инфографика", icon="📊"),
+        st.Page("views/changes.py", title="Изменения", icon="🔁"),
+        st.Page("views/reports.py", title=f"Сообщения ({n_new})" if n_new else "Сообщения", icon="✉️"),
+        st.Page("views/export.py", title="Выгрузка", icon="⬇️"),
+    ],
+    "Служебное": [
+        st.Page("views/history.py", title="История сборов", icon="🕓"),
         st.Page("views/quality.py", title="Качество данных", icon="🧹"),
         st.Page("views/spellings.py", title="Словарь написаний", icon="🔤"),
     ],
