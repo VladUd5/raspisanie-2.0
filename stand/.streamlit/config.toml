@@ -1,0 +1,67 @@
+# Оформление версии для руководства — в одном стиле со студенческим сайтом (public/static/style.css).
+[client]
+toolbarMode = "minimal"          # без «Deploy» и меню разработчика
+
+[server]
+enableStaticServing = true       # static/: шрифт и логотип
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+font = "Golos, system-ui, sans-serif"
+headingFont = "Golos, system-ui, sans-serif"
+headingFontSizes = ["1.9rem", "1.3rem", "1.1rem"]
+headingFontWeights = [700, 650, 600]
+baseFontSize = 15
+baseRadius = "10px"
+buttonRadius = "10px"
+showWidgetBorder = true
+showSidebarBorder = true
+metricValueFontSize = "2rem"
+metricValueFontWeight = 700
+linkUnderline = false
+
+[[theme.fontFaces]]
+family = "Golos"
+url = "app/static/fonts/golos-cyrillic.woff2"
+weight = "400 900"
+unicodeRange = "U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116"
+
+[[theme.fontFaces]]
+family = "Golos"
+url = "app/static/fonts/golos-latin.woff2"
+weight = "400 900"
+unicodeRange = "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212"
+
+[theme.light]
+base = "light"
+primaryColor = "#1F5C3A"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F3F5F4"
+textColor = "#15201A"
+borderColor = "#DDE3DF"
+linkColor = "#1F5C3A"
+greenColor = "#1F5C3A"
+dataframeHeaderBackgroundColor = "#F3F5F4"
+chartCategoricalColors = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7"]
+
+[theme.light.sidebar]
+backgroundColor = "#F3F5F4"
+secondaryBackgroundColor = "#FFFFFF"
+
+[theme.dark]
+base = "dark"
+primaryColor = "#4FAE78"
+backgroundColor = "#0F1412"
+secondaryBackgroundColor = "#1E2622"
+textColor = "#E7EEEA"
+borderColor = "#2A3530"
+linkColor = "#7DCB9E"
+greenColor = "#4FAE78"
+dataframeHeaderBackgroundColor = "#171D1A"
+chartCategoricalColors = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9"]
+
+[theme.dark.sidebar]
+backgroundColor = "#171D1A"
+secondaryBackgroundColor = "#1E2622"

@@ -1,5 +1,6 @@
 """Расписание: версия для руководства (нагрузка, аудитории, изменения, сообщения пользователей)."""
 import sqlite3
+from pathlib import Path
 
 import streamlit as st
 
@@ -8,7 +9,10 @@ from feedback import store as feedback
 from etl.load import connect, ensure_loaded
 from ui import filters
 
-st.set_page_config(page_title=f"{site_title()} · руководство", page_icon="📅", layout="wide")
+STATIC = Path(__file__).parent / "static"
+st.set_page_config(page_title=f"{site_title()} · руководство", page_icon=str(STATIC / "icon.svg"), layout="wide")
+st.logo(str(STATIC / "logo.svg"), icon_image=str(STATIC / "icon.svg"), size="large")
+st.html("<style>[data-testid=stMainBlockContainer]{padding-top:2.5rem}</style>")
 
 
 def _load_new_snapshots() -> list[str]:
@@ -49,20 +53,20 @@ def _new_reports() -> int:
 n_new = _new_reports()
 pages = st.navigation({
     "Расписание": [
-        st.Page("views/summary.py", title="Сводка", icon="🏠", default=True),
-        st.Page("views/teachers.py", title="Преподаватели", icon="👩‍🏫"),
-        st.Page("views/rooms.py", title="Аудитории", icon="🚪"),
-        st.Page("views/disciplines.py", title="Дисциплины", icon="📚"),
-        st.Page("views/groups.py", title="Группы", icon="👥"),
-        st.Page("views/infographics.py", title="Инфографика", icon="📊"),
-        st.Page("views/changes.py", title="Изменения", icon="🔁"),
-        st.Page("views/reports.py", title=f"Сообщения ({n_new})" if n_new else "Сообщения", icon="✉️"),
-        st.Page("views/export.py", title="Выгрузка", icon="⬇️"),
+        st.Page("views/summary.py", title="Сводка", icon=":material/space_dashboard:", default=True),
+        st.Page("views/teachers.py", title="Преподаватели", icon=":material/person:"),
+        st.Page("views/rooms.py", title="Аудитории", icon=":material/meeting_room:"),
+        st.Page("views/disciplines.py", title="Дисциплины", icon=":material/menu_book:"),
+        st.Page("views/groups.py", title="Группы", icon=":material/groups:"),
+        st.Page("views/infographics.py", title="Инфографика", icon=":material/insights:"),
+        st.Page("views/changes.py", title="Изменения", icon=":material/published_with_changes:"),
+        st.Page("views/reports.py", title=f"Сообщения ({n_new})" if n_new else "Сообщения", icon=":material/mail:"),
+        st.Page("views/export.py", title="Выгрузка", icon=":material/download:"),
     ],
     "Служебное": [
-        st.Page("views/history.py", title="История сборов", icon="🕓"),
-        st.Page("views/quality.py", title="Качество данных", icon="🧹"),
-        st.Page("views/spellings.py", title="Словарь написаний", icon="🔤"),
+        st.Page("views/history.py", title="История сборов", icon=":material/history:"),
+        st.Page("views/quality.py", title="Качество данных", icon=":material/rule:"),
+        st.Page("views/spellings.py", title="Словарь написаний", icon=":material/spellcheck:"),
     ],
 })
 st.session_state["ctx"] = filters.sidebar()

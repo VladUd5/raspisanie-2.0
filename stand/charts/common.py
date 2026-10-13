@@ -1,5 +1,5 @@
 """Построители графиков Plotly. Палитра проверена на различимость, в том числе для дальтоников
-(категориальные слоты 1–7, светлая и тёмная темы), последовательная шкала — синяя.
+(категориальные слоты 1–7, светлая и тёмная темы), последовательная шкала и одиночные ряды — фирменный зелёный.
 В светлой теме три цвета ниже 3:1 к фону, поэтому у каждого графика на
 странице есть таблица с теми же данными."""
 import pandas as pd
@@ -10,10 +10,11 @@ SERIES = {
     "dark": ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9"],
 }
 NEUTRAL = "#898781"
-SURFACE = {"light": "#ffffff", "dark": "#0e1117"}          # фон Streamlit
-SEQUENTIAL = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
+SURFACE = {"light": "#ffffff", "dark": "#0f1412"}          # фон страницы (.streamlit/config.toml)
+SEQUENTIAL = ["#e3f1e7", "#bfe0c9", "#94cba6", "#64b07f", "#3d9260", "#22704a", "#12502f"]   # зелёная, как сайт
+BRAND = {"light": "#2f7a50", "dark": "#4fae78"}            # одна серия — фирменный зелёный
 LESSON_TYPES = ["лекция", "практика", "лабораторная", "семинар", "консультация", "зачёт", "экзамен", "не определён"]
-FONT = "system-ui, -apple-system, 'Segoe UI', sans-serif"
+FONT = "Golos, system-ui, -apple-system, 'Segoe UI', sans-serif"
 
 
 def type_colors(mode: str) -> dict[str, str]:
@@ -35,7 +36,7 @@ def bar_h(df: pd.DataFrame, label: str, value: str, title: str, value_title: str
     """Горизонтальный рейтинг: одна серия — один цвет (слот 1), без легенды."""
     d = df.head(top).iloc[::-1]
     fig = go.Figure(go.Bar(
-        x=d[value], y=d[label].astype(str), orientation="h", marker_color=SERIES[mode][0],
+        x=d[value], y=d[label].astype(str), orientation="h", marker_color=BRAND[mode],
         hovertemplate=f"%{{y}}<br>{value_title}: %{{x:.2f}}<extra></extra>"))
     fig.update_layout(bargap=0.35)
     fig.update_xaxes(title=value_title)
@@ -47,7 +48,7 @@ def histogram(bins: pd.DataFrame, step: float, title: str, value_title: str, cou
     """Гистограмма по готовым интервалам (одна серия, слот 1) и пунктир медианы."""
     centers = bins["bin_from"] + step / 2
     fig = go.Figure(go.Bar(
-        x=centers, y=bins["count"], width=step * 0.94, marker_color=SERIES[mode][0], customdata=bins["label"],
+        x=centers, y=bins["count"], width=step * 0.94, marker_color=BRAND[mode], customdata=bins["label"],
         hovertemplate=f"%{{customdata}} {value_title}<br>{count_title}: %{{y}}<extra></extra>"))
     if median is not None:
         fig.add_vline(x=median, line=dict(color=NEUTRAL, width=2, dash="dash"),

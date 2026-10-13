@@ -1,9 +1,11 @@
+from datetime import datetime
+
 import streamlit as st
 
 import collector
 from config import collect_times, env_date
 from labels import ru
-from semester import semester_for, today
+from semester import semester_for, today, tz
 from ui import data, status
 
 st.title("История сборов")
@@ -34,7 +36,10 @@ snaps = data.snapshots()
 if snaps.empty:
     st.info("Сборов ещё не было.")
     st.stop()
-view = snaps.assign(published=snaps["published"].map({1: "да", 0: "нет"}).fillna("обрабатывается"))
+view = snaps.assign(published=snaps["published"].map({1: "да", 0: "нет"}).fillna("обрабатывается"),
+                    note=snaps["note"].fillna(""),
+                    collected_at=[datetime.fromisoformat(x).astimezone(tz()).strftime("%d.%m.%Y %H:%M")
+                                  for x in snaps["collected_at"]])
 view = view[["collected_at", "lessons_cnt", "groups_cnt", "published", "note", "file_name"]]
 st.dataframe(ru(view).rename(columns={"published": "Опубликован", "note": "Примечание"}), hide_index=True,
              width="stretch")
