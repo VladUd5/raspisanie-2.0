@@ -29,7 +29,7 @@ c4.metric("Не прочитано", int((files["status"] == "error").sum()) if 
 
 left, right = st.columns([3, 1])
 with right:
-    if st.button("Проверить графики на сайте вуза", icon=":material/refresh:"):
+    if st.button("Проверить графики", icon=":material/refresh:", help="Найти новые графики на сайте вуза и распознать их"):
         path = kug_request_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(now().isoformat(timespec="seconds"), encoding="utf-8")
@@ -40,7 +40,7 @@ with left:
     text = st.text_input("Программа или код группы", placeholder="например, Б-ЛА или Агрономия")
 
 if files.empty:
-    st.info("Графики ещё не загружались. Нажмите «Проверить графики на сайте вуза» — collector разберёт их "
+    st.info("Графики ещё не загружались. Нажмите «Проверить графики» — collector разберёт их "
             "в фоне (несколько минут).")
     st.stop()
 
