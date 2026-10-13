@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
+from etl import history
 from etl.clean import UNKNOWN, clean
 from etl.flatten import drop_superseded, flatten
 from etl.canon import UNVERIFIED, Canonizer, Resolved
@@ -16,13 +17,19 @@ from etl.variants import NOT_DISCIPLINE, classify
 
 # Меняется при несовместимой правке схемы: стенд пересоздаёт БД, а снапшоты
 # из data/snapshots перечитывает ensure_loaded на следующем запуске.
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS snapshots (
     id INTEGER PRIMARY KEY, collected_at TEXT, source_url TEXT, file_name TEXT UNIQUE,
-    groups_cnt INTEGER, cells_cnt INTEGER, lessons_cnt INTEGER, service_cnt INTEGER);
+    groups_cnt INTEGER, cells_cnt INTEGER, lessons_cnt INTEGER, service_cnt INTEGER,
+    published INTEGER, note TEXT);   -- published: NULL — ещё не обработан history.refresh
+CREATE TABLE IF NOT EXISTS changes (
+    snapshot_id INTEGER REFERENCES snapshots(id) ON DELETE CASCADE, prev_snapshot_id INTEGER,
+    kind TEXT, institute TEXT, study_form TEXT, group_name TEXT, date TEXT, day_idx INTEGER,
+    time_from TEXT, week_type TEXT, subgroup INTEGER, session_week TEXT,
+    before TEXT, after TEXT, teachers TEXT, rooms TEXT);
 CREATE TABLE IF NOT EXISTS cells (
     id INTEGER PRIMARY KEY, snapshot_id INTEGER REFERENCES snapshots(id) ON DELETE CASCADE,
     building TEXT, institute TEXT, study_form TEXT, group_name TEXT,
@@ -67,6 +74,7 @@ CREATE TABLE IF NOT EXISTS rule_audit (
     kind TEXT, tp INTEGER, fp INTEGER, fn INTEGER);
 CREATE INDEX IF NOT EXISTS ix_spellings_snapshot ON spellings(snapshot_id);
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+CREATE INDEX IF NOT EXISTS ix_changes_snapshot ON changes(snapshot_id);
 CREATE INDEX IF NOT EXISTS ix_lessons_snapshot ON lessons(snapshot_id);
 CREATE INDEX IF NOT EXISTS ix_cells_snapshot ON cells(snapshot_id);
 CREATE INDEX IF NOT EXISTS ix_lesson_teachers_lesson ON lesson_teachers(lesson_id);
@@ -82,6 +90,10 @@ BUSY_TIMEOUT_S = 120
 def connect(db_path: Path | str) -> sqlite3.Connection:
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path, timeout=BUSY_TIMEOUT_S)
+    try:   # WAL: сайт читает базу, пока collector пишет новый снапшот
+        conn.execute("PRAGMA journal_mode=WAL")
+    except sqlite3.OperationalError:   # база только для чтения или занята — остаёмся в прежнем режиме
+        pass
     if conn.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
         conn.execute("PRAGMA foreign_keys = OFF")
         for (name,) in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
@@ -287,6 +299,7 @@ def ensure_loaded(conn: sqlite3.Connection, snapshots_dir: Path,
                 conn.execute("DELETE FROM snapshots")
                 conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('dictionary', ?)", (current,))
             conn.executemany("DELETE FROM snapshots WHERE file_name = ?", [(n,) for n in known() - names])
+            history.reset(conn)   # удалённый снапшот мог быть точкой сравнения для следующих
     loaded, errors = [], []
     already = known()
     for p in files:
@@ -299,4 +312,5 @@ def ensure_loaded(conn: sqlite3.Connection, snapshots_dir: Path,
                 loaded.append(_insert_snapshot(conn, p, dictionary))
         except (ValueError, OSError, AttributeError, TypeError, KeyError) as e:
             errors.append((p.name, str(e)))
+    history.refresh(conn)
     return loaded, errors
