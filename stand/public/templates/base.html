@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ site_title }}{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css?v=1">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">📅 Расписание</a>
+  <form class="topsearch" action="/" method="get" role="search">
+    <input type="search" name="q" placeholder="Группа, преподаватель, аудитория" aria-label="Поиск" autocomplete="off" data-suggest>
+  </form>
+</header>
+<main>
+{% block main %}{% endblock %}
+</main>
+<footer>
+  {% if checked %}<div>Проверено на сайте вуза: {{ checked }}</div>{% endif %}
+  <div><a href="/changes">Изменения в расписании</a> · данные — с сайта вуза, разобраны автоматически</div>
+</footer>
+<script src="/static/app.js?v=1" defer></script>
+</body>
+</html>

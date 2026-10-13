@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — расписание{% endblock %}
+{% block main %}
+<section class="head" data-recent="{{ title }}|{{ path }}|{{ subtitle }}">
+  <h1>{{ title }}</h1>
+  <div class="muted">{{ subtitle }}</div>
+  {% if request.query_params.get('reported') %}<p class="ok">Спасибо! Сообщение отправлено в учебный отдел.</p>{% endif %}
+</section>
+<nav class="weeknav">
+  {% if week.prev %}<a href="?week={{ week.prev.isoformat() }}" aria-label="Предыдущая неделя">◀</a>{% else %}<span></span>{% endif %}
+  <div class="weeklabel">
+    <b>{{ week.label }}</b>
+    {% if week.dated_only %}<span class="pill">неделя сессии</span>
+    {% elif week.week_type == 'numerator' %}<span class="pill up">верхняя неделя</span>
+    {% elif week.week_type == 'denominator' %}<span class="pill down">нижняя неделя</span>
+    {% elif not week.dated_only %}<span class="pill">вне семестра: обе недели</span>{% endif %}
+    {% if week.monday != current_monday %}<a class="small" href="{{ path }}">к текущей</a>{% endif %}
+  </div>
+  {% if week.next %}<a href="?week={{ week.next.isoformat() }}" aria-label="Следующая неделя">▶</a>{% else %}<span></span>{% endif %}
+</nav>
+{% if week.empty %}
+<section class="card"><p class="muted">На этой неделе занятий нет.</p></section>
+{% endif %}
+{% for day in week.days %}{% if day.lessons %}
+<section class="day{% if day.is_today %} today{% endif %}" {% if day.is_today %}id="today"{% endif %}>
+  <h2>{{ day.name|capitalize }}, {{ day.date.strftime('%d.%m') }}{% if day.is_today %} <span class="pill">сегодня</span>{% endif %}</h2>
+  {% for l in day.lessons %}{% include "lesson.html" %}{% endfor %}
+</section>
+{% endif %}{% endfor %}
+{% if week.undated %}
+<section class="day">
+  <h2>Занятия без даты</h2>
+  <p class="muted small">В файле расписания у этих занятий не указана дата.</p>
+  {% for l in week.undated %}{% include "lesson.html" %}{% endfor %}
+</section>
+{% endif %}
+{% if ics_path %}
+<section class="card">
+  <h2>📅 Подписаться в календарь</h2>
+  <p class="small">Календарь на телефоне сам подтянет новые недели и изменения.</p>
+  {% set base = public_url or (request.base_url|string).rstrip('/') %}
+  <div class="ics">
+    <a class="btn" href="webcal://{{ (base ~ ics_path).split('://', 1)[1] }}">Подписаться</a>
+    {% for s in subgroups %}<a class="btn ghost" href="webcal://{{ (base ~ ics_path).split('://', 1)[1] }}?sub={{ s }}">только подгруппа {{ s }}</a>{% endfor %}
+  </div>
+  <details class="small"><summary>Как подписаться вручную</summary>
+    <p>Ссылка: <code>{{ base ~ ics_path }}</code></p>
+    <p><b>iPhone:</b> Настройки → Календарь → Учётные записи → Добавить → Другое → Подписной календарь → вставьте ссылку.</p>
+    <p><b>Android / Google:</b> на компьютере откройте calendar.google.com → «Другие календари» → «+» → «Добавить по URL» → вставьте ссылку. Google обновляет подписку раз в несколько часов (иногда до суток) — это настройка Google.</p>
+  </details>
+</section>
+{% endif %}
+{% endblock %}

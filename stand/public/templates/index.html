@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block main %}
+<section class="hero">
+  <h1>{{ site_title }}</h1>
+  <form action="/" method="get" role="search" class="bigsearch">
+    <input type="search" name="q" value="{{ q }}" placeholder="Например: Б-Э-101, Иванов, УК1 314" autofocus autocomplete="off" data-suggest aria-label="Поиск">
+    <button type="submit">Найти</button>
+  </form>
+  {% if not ready %}<p class="note">Расписание ещё загружается с сайта вуза — загляните через несколько минут.</p>{% endif %}
+</section>
+{% if q %}
+<section class="card">
+  <h2>Найдено: {{ results|length }}</h2>
+  {% if results %}
+  <ul class="results">
+    {% for e in results %}<li><a href="{{ e.url }}"><b>{{ e.label }}</b> <span class="muted">{{ e.kind }}{% if e.hint %} · {{ e.hint }}{% endif %}</span></a></li>{% endfor %}
+  </ul>
+  {% else %}<p class="muted">Ничего не нашлось. Проверьте написание: группу можно искать без дефисов, преподавателя — по фамилии.</p>{% endif %}
+</section>
+{% endif %}
+<section class="card" id="recent" hidden>
+  <h2>Недавно открытые</h2>
+  <ul class="results" id="recent-list"></ul>
+</section>
+{% if recent_changes is not none and recent_changes|length %}
+<section class="card">
+  <h2>Последние изменения</h2>
+  <ul class="changes">
+    {% for c in recent_changes.itertuples() %}
+    <li><span class="badge b-{{ c.kind }}">{{ change_label.get(c.kind, c.kind) }}</span>
+      {% if c.group_name %}<a href="{{ group_url(c.group_name) }}">{{ c.group_name }}</a>{% endif %}
+      {{ c.after or c.before }}</li>
+    {% endfor %}
+  </ul>
+  <p><a href="/changes">Все изменения →</a></p>
+</section>
+{% endif %}
+{% endblock %}
