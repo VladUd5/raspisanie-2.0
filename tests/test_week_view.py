@@ -82,3 +82,27 @@ def test_teacher_page_shows_only_own_cancellations():
     assert [x.discipline for x in mine] == ["Химия"] and mine[0].lesson_type == "лекция"
     assert len(week._cancelled(changes, rows, MON, ("room", ("УК1", "102")))) == 1
     assert len(week._cancelled(changes, rows, MON)) == 2
+
+
+def test_stats_hours_and_slots():
+    from public import stats
+    assert stats._hours(les("08:30", "10:00", "А")) == 2 and stats._hours(les("08:30", "", "А")) == 2
+    a, b = les("10:10", "11:40", "Лаб"), les("10:10", "11:40", "Лаб")
+    b.subgroup = 2                                     # две подгруппы в одно время — одна пара для группы
+    assert len(stats._unique_slots([(MON, a), (MON, b)])) == 1
+
+
+def test_stats_compute_semester(monkeypatch):
+    from public import stats
+    monkeypatch.setenv("AUTUMN_START", "09-01")
+    items = pd.DataFrame([dict(institute="И", study_form="Очная", group_name="Г-1", date="", session_week="",
+                               day_idx=0, time_from="08:30", time_to="10:00", week_type="both", subgroup=0,
+                               lesson_type="лекция", discipline="Физика", teachers=("Иванов И.И.",),
+                               rooms=(("УК1", "101"),))])
+    w = week.build(items, items, MON, pd.DataFrame())
+    st = stats.compute(items, items, "group", date(2026, 10, 13), w,
+                       {"group": str, "teacher": str, "discipline": str})
+    mondays = sum(1 for i in range(122) if (date(2026, 9, 1) + timedelta(days=i)).weekday() == 0)
+    assert st.total == 2 * mondays and st.done == 2 * 6        # понедельники 07.09…12.10 — прошли
+    assert [m for m, _, _ in st.month] == ["Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+    assert st.rows[0].title == "Физика" and st.by_type[0].key == "lec" and st.week_hours == 2

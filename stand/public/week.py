@@ -151,6 +151,8 @@ def select(items: pd.DataFrame, kind: str, key) -> pd.DataFrame:
         return items[items["group_name"] == key]
     if kind == "teacher":
         return items[[key in t for t in items["teachers"]]]
+    if kind == "discipline":
+        return items[items["discipline"] == key]
     return items[[key in r for r in items["rooms"]]]
 
 
@@ -272,6 +274,30 @@ def _mins(delta: timedelta) -> int:
     return max(0, int(delta.total_seconds() // 60))
 
 
+def expand(items: pd.DataFrame, rows: pd.DataFrame, start: date, end: date,
+           dated_until: date | None = None) -> list[tuple[date, "Lesson"]]:
+    """Занятия по датам: еженедельные (очники, очно-заочники) — на каждый день семестра в [start, end]
+    по верхней/нижней неделе; датированные (заочники) — в [start, dated_until или end]. Поток для
+    нескольких групп в один день — одно занятие. Заочные занятия без даты не попадают."""
+    dated_until = dated_until or end
+    dg = _dated_groups(items)
+    zao = [(i, f, g) in dg for i, f, g in zip(rows["institute"], rows["study_form"], rows["group_name"])]
+    weekly = rows[(rows["date"] == "") & ~pd.Series(zao, index=rows.index, dtype=bool)]
+    dated = rows[(rows["date"] >= start.isoformat()) & (rows["date"] <= dated_until.isoformat()) & (rows["date"] != "")]
+    picked = [(date.fromisoformat(r.date), r, "") for r in dated.itertuples()]
+    if not weekly.empty:
+        by_day = {i: list(part.itertuples()) for i, part in weekly.groupby("day_idx")}
+        d = start
+        while d <= end:
+            wt = week_type_on(d)
+            if wt is not None:
+                for r in by_day.get(d.weekday(), []):
+                    if r.week_type in ("both", wt):
+                        picked.append((d, r, ""))
+            d += timedelta(days=1)
+    return [(d, les) for d, part in _merge(picked).items() for les in part]
+
+
 def _merge(picked: list[tuple]) -> dict:
     """Поток для нескольких групп — одно занятие со списком групп."""
     out: dict = {}
@@ -371,6 +397,8 @@ def _cancelled(changes: pd.DataFrame, rows: pd.DataFrame, m: date, who: tuple | 
         c = c[[who[1] in t.split(", ") for t in c["teachers"]]]
     elif who and who[0] == "room":
         c = c[[f"{who[1][0]} {who[1][1]}" in r.split(", ") for r in c["rooms"]]]
+    elif who and who[0] == "discipline":
+        c = c[[any(_parse(x)[1] == who[1] for x in content(b)) for b in c["before"]]]
     out = []
     for r in c.itertuples():
         if r.date:

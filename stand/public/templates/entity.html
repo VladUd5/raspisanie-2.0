@@ -39,6 +39,16 @@
 
 {% if request.query_params.get('reported') %}<p class="ok" role="status">Спасибо! Сообщение отправлено в учебный отдел.</p>{% endif %}
 
+{% set keep = ('&amp;form=' ~ fcode if fcode else '') ~ ('&amp;sub=' ~ sub if sub else '') %}
+<nav class="tabs" aria-label="Разделы страницы">
+  <a href="{{ path }}{% if keep %}?{{ keep[5:] }}{% endif %}" {% if view != 'stats' %}aria-current="page"{% endif %}>Расписание</a>
+  <a href="{{ path }}?view=stats{{ keep }}" {% if view == 'stats' %}aria-current="page"{% endif %}>Аналитика</a>
+</nav>
+
+{% if view == 'stats' %}
+{% include "stats.html" %}
+{% else %}
+
 <nav class="weekbar" aria-label="Неделя">
   <div class="weekbar-l">
     {% if week.prev %}<a class="arrow" href="{{ href(week.prev) }}" aria-label="Предыдущая неделя">{% else %}<a class="arrow" aria-disabled="true" aria-label="Предыдущей недели нет">{% endif %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></a>
@@ -141,5 +151,6 @@
     </div>
   </div>
 </section>
+{% endif %}
 {% endif %}
 {% endblock %}

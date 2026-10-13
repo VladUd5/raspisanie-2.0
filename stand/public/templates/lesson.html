@@ -19,7 +19,7 @@
   </summary>
   <div class="pop">
     <div class="when">{% if l.date %}{{ when_full(l.date) }}{% else %}{{ day_names[l.day_idx]|capitalize }}, без даты{% endif %}{% if l.pair %} · {{ l.pair }} пара{% endif %} · {{ l.time_from }}{% if l.time_to %}–{{ l.time_to }}{% endif %}</div>
-    <h3>{{ l.discipline or 'Занятие' }}</h3>
+    <h3>{% if l.discipline and not l.cancelled and kind != 'discipline' %}<a href="{{ discipline_url(l.discipline) }}">{{ l.discipline }}</a>{% else %}{{ l.discipline or 'Занятие' }}{% endif %}</h3>
     {% if not l.cancelled %}
     <dl>
       <dt>Вид</dt><dd>{{ l.type_title }}{% if l.subgroup %}, подгруппа {{ l.subgroup }}{% endif %}</dd>

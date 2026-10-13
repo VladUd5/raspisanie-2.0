@@ -16,3 +16,7 @@ def teacher_url(name: str) -> str:
 
 def room_url(building: str, room: str) -> str:
     return f"/r/{_q(building)}/{_q(room)}"
+
+
+def discipline_url(name: str) -> str:
+    return f"/d/{_q(name)}"

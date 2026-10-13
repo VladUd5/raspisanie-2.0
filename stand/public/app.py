@@ -14,9 +14,9 @@ from collector import read_status
 from config import feedback_db_path, public_url, reports_per_hour, site_title
 from feedback import store as feedback
 from labels import DAYS, SHORT_DAYS
-from public import ics, week
+from public import ics, stats, week
 from public.data import Store, search
-from public.urls import group_url, room_url, teacher_url
+from public.urls import discipline_url, group_url, room_url, teacher_url
 from semester import monday, now, today
 
 HERE = Path(__file__).parent
@@ -26,7 +26,7 @@ app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=HERE / "templates")
 store = Store()
 
-KIND_TITLE = {"group": "Группа", "teacher": "Преподаватель", "room": "Аудитория"}
+KIND_TITLE = {"group": "Группа", "teacher": "Преподаватель", "room": "Аудитория", "discipline": "Дисциплина"}
 CHANGE_LABEL = {"added": "добавлено", "removed": "отменено", "changed": "изменено", "moved": "перенесено",
                 "replaced": "замена",
                 "week_published": "новая неделя", "week_removed": "неделя снята", "major_update": "новое расписание"}
@@ -83,7 +83,7 @@ HELPERS = dict(ddmm=_ddmm, when_full=_when_full, when_day=_when_day, plural=_plu
 
 def render(request: Request, name: str, status_code: int = 200, **ctx) -> HTMLResponse:
     ctx.update(site_title=site_title(), checked=_checked(), group_url=group_url, teacher_url=teacher_url,
-               room_url=room_url, change_label=CHANGE_LABEL, feedback_kinds=feedback.KINDS, **HELPERS)
+               room_url=room_url, discipline_url=discipline_url, change_label=CHANGE_LABEL, feedback_kinds=feedback.KINDS, **HELPERS)
     resp = templates.TemplateResponse(request, name, ctx, status_code=status_code)
     resp.headers["Cache-Control"] = "no-cache"
     return resp
@@ -148,19 +148,42 @@ def _entity(request: Request, kind: str, key, title: str, subtitle: str, ics_pat
         rows = rows[rows["study_form"] == form]
     else:
         form = None
-    current = week.default_monday(rows, today())
-    m = _parse_week(week_param) or current
-    w = week.build(data.items, rows, m, data.changes, who=(kind, key))
     subgroups = sorted({int(s) for s in rows["subgroup"] if s})
     sub = int(sub_param) if sub_param.isdigit() and int(sub_param) in subgroups else None
     if sub:
-        for d in w.days:
-            d.lessons = [x for x in d.lessons if x.subgroup in (0, sub)]
+        rows = rows[rows["subgroup"].isin([0, sub])]
+    view = "stats" if request.query_params.get("view") == "stats" else "week"
+    current = week.default_monday(rows, today())
+    m = current if view == "stats" else (_parse_week(week_param) or current)
+    w = week.build(data.items, rows, m, data.changes, who=(kind, key))
+    st = None
+    if view == "stats":
+        st = stats.compute(data.items, rows, kind, today(), w,
+                           {"group": group_url, "teacher": teacher_url, "discipline": discipline_url})
+        if request.query_params.get("format") == "xlsx":
+            return _xlsx(st, kind, title)
     return render(request, "entity.html", kind=kind, title=title, subtitle=subtitle, week=w, ics_path=ics_path,
                   subgroups=subgroups, sub=sub, path=request.url.path, snapshot_id=data.snapshot_id,
                   current_monday=current, public_url=public_url(), legend=week.LEGEND,
                   up=week.upcoming(w), show_day=_show_day(w, day_param), kind_title=KIND_TITLE[kind],
-                  forms=forms if kind != "group" else [], form=form, form_codes=week.FORMS)
+                  forms=forms if kind != "group" else [], form=form, form_codes=week.FORMS, view=view, st=st,
+                  type_short=stats.TYPE_SHORT)
+
+
+def _xlsx(st, kind: str, title: str) -> Response:
+    import io
+
+    import pandas as pd
+    people = "Группы" if kind == "teacher" else "Преподаватели"
+    first = "Группа" if kind == "discipline" else "Дисциплина"
+    df = pd.DataFrame([{first: r.title, "Типы": ", ".join(stats.TYPE_LABEL[t] for t in r.types),
+                        people: ", ".join(r.people), "Прошло, ак. ч": r.done, "Всего за семестр, ак. ч": r.total}
+                       for r in st.rows])
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False, sheet_name="Семестр")
+    return Response(buf.getvalue(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(title)}.xlsx"})
 
 
 def _show_day(w: week.Week, value: str) -> int:
@@ -227,6 +250,17 @@ def teacher_page(request: Request, name: str, week: str = "", day: str = "", for
 def room_page(request: Request, building: str, room: str, week: str = "", day: str = "", form: str = ""):
     return _entity(request, "room", (building, room), f"{building}, ауд. {room}", "Аудитория", "", week, "", day,
                    form)
+
+
+@app.get("/d/{name:path}", response_class=HTMLResponse)
+def discipline_page(request: Request, name: str, week: str = "", day: str = "", form: str = ""):
+    data = store.get()
+    info = "Дисциплина"
+    if data is not None:
+        part = data.items[data.items["discipline"] == name]
+        g, t = part["group_name"].nunique(), len({x for ts in part["teachers"] for x in ts})
+        info = f"Дисциплина · групп: {g} · преподавателей: {t}"
+    return _entity(request, "discipline", name, name, info, "", week, "", day, form)
 
 
 @app.get("/changes", response_class=HTMLResponse)

@@ -175,3 +175,19 @@ def test_teacher_ics_form_filter(mixed_client):
     assert uid(zao) <= uid(full) and uid(och) <= uid(full) and not uid(zao) & uid(och)
     assert get(form="мусор").count("BEGIN:VEVENT") == full.count("BEGIN:VEVENT")
     assert "?form=zaoch" in mixed_client.get(url).text.split('id="calendar"')[1]
+
+
+def test_stats_tab_discipline_page_and_excel(client):
+    r = client.get("/g/Б-Э-101", params={"view": "stats"})
+    assert r.status_code == 200 and "Семестр" in r.text and 'aria-current="page">Аналитика' in r.text
+    assert "История России" in r.text                                      # строка таблицы дисциплин
+    hits = client.get("/api/search", params={"q": "история рос"}).json()
+    disc = next(e for e in hits if e["kind"] == "дисциплина")
+    page = client.get(disc["url"])
+    assert page.status_code == 200 and "Б-Э-101" in page.text and "Б-БИ-101" in page.text
+    assert client.get(disc["url"], params={"view": "stats"}).status_code == 200
+    x = client.get("/g/Б-Э-101", params={"view": "stats", "format": "xlsx"})
+    assert x.headers["content-type"].startswith("application/vnd.openxmlformats") and x.content[:2] == b"PK"
+    teacher = client.get("/api/search", params={"q": "шалаева"}).json()[0]["url"]
+    assert "Аналитика" in client.get(teacher, params={"view": "stats"}).text
+    assert client.get("/d/Нет такой дисциплины").status_code == 404

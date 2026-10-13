@@ -48,7 +48,7 @@ def norm(s: str) -> str:
 
 
 def _index(items: pd.DataFrame) -> list[dict]:
-    from public.urls import group_url, room_url, teacher_url
+    from public.urls import discipline_url, group_url, room_url, teacher_url
     out = []
     for g, part in items.groupby("group_name"):
         hint = ", ".join(sorted({f"{f.lower()}" for f in part["study_form"]}))
@@ -57,6 +57,10 @@ def _index(items: pd.DataFrame) -> list[dict]:
         out.append({"kind": "преподаватель", "label": t, "url": teacher_url(t), "hint": ""})
     for b, r in sorted({x for rs in items["rooms"] for x in rs}):
         out.append({"kind": "аудитория", "label": f"{b}, {r}", "url": room_url(b, r), "hint": ""})
+    for d, part in items[items["discipline"] != ""].groupby("discipline"):
+        n = part["group_name"].nunique()
+        out.append({"kind": "дисциплина", "label": d, "url": discipline_url(d),
+                    "hint": f"{n} {'группа' if n % 10 == 1 and n % 100 != 11 else 'групп'}"})
     for e in out:
         e["norm"] = norm(e["label"])
     return out
@@ -66,7 +70,7 @@ def search(index: list[dict], q: str, limit: int = 12) -> list[dict]:
     n = norm(q)
     if not n:
         return []
-    order = {"группа": 0, "преподаватель": 1, "аудитория": 2}
+    order = {"группа": 0, "преподаватель": 1, "аудитория": 2, "дисциплина": 3}
     scored = []
     for e in index:
         if e["norm"].startswith(n):

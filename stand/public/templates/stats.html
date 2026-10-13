@@ -1,0 +1,97 @@
+{# Вкладка «Аналитика»: st — public.stats.Stats #}
+{% set hours = 'ч' %}
+<div class="kpis">
+  {% if kind == 'room' %}
+  <div class="kpi"><span>Занятость на этой неделе</span><b>{{ st.occupancy }}%</b><small>{{ st.week_pairs }} из {{ 6 * 7 }} пар</small></div>
+  {% else %}
+  <div class="kpi"><span>Эта неделя</span><b>{{ st.week_hours }} {{ hours }}</b><small>{{ st.week_pairs }} {{ plural(st.week_pairs, 'пара', 'пары', 'пар') }}</small></div>
+  {% endif %}
+  {% if st.semester %}
+  {% set cur = st.current_month %}
+  <div class="kpi"><span>{{ cur[0] if cur else 'Месяц' }}</span><b>{{ cur[1] if cur else 0 }} {{ hours }}</b><small>{% if st.busiest_month and cur and st.busiest_month == cur[0] %}самый загруженный месяц{% elif st.busiest_month %}больше всего — {{ st.busiest_month|lower }}{% endif %}</small></div>
+  <div class="kpi"><span>Семестр</span><b>{{ st.total }} {{ hours }}</b><small>прошло {{ st.done }} · осталось {{ st.left }}</small></div>
+  {% endif %}
+  {% if kind == 'group' %}
+  <div class="kpi"><span>Дисциплин · преподавателей</span><b>{{ st.counts.disciplines }} · {{ st.counts.teachers }}</b><small>в расписании группы</small></div>
+  {% elif kind == 'teacher' %}
+  <div class="kpi"><span>Групп · дисциплин</span><b>{{ st.counts.groups }} · {{ st.counts.disciplines }}</b><small>в расписании преподавателя</small></div>
+  {% elif kind == 'room' %}
+  <div class="kpi"><span>Групп · дисциплин</span><b>{{ st.counts.groups }} · {{ st.counts.disciplines }}</b><small>занимаются здесь</small></div>
+  {% else %}
+  <div class="kpi"><span>Групп · преподавателей</span><b>{{ st.counts.groups }} · {{ st.counts.teachers }}</b><small>аудиторий: {{ st.counts.rooms }}</small></div>
+  {% endif %}
+</div>
+
+{% if not st.semester %}
+<section class="card"><p class="muted" style="margin:0">Сегодня не попадает в семестр — подсчёт за семестр появится, когда учебный отдел задаст его даты.</p></section>
+{% endif %}
+
+<div class="stats-grid">
+  {% if st.month %}
+  <section class="card">
+    <h2>По месяцам семестра</h2>
+    <div class="bars" style="--n: {{ st.month|length }}">
+      {% for name, h, now_ in st.month %}
+      <div class="bar{% if now_ %} now{% endif %}"><b>{{ h }}</b><i style="height: {{ (100 * h / st.month_max)|round|int }}%"></i><span>{{ name[:3] }}</span></div>
+      {% endfor %}
+    </div>
+    <p class="muted small">Академических часов по расписанию; сессия и каникулы пока не вычитаются.</p>
+  </section>
+  {% endif %}
+
+  {% if kind == 'room' %}
+  <section class="card">
+    <h2>Занятость по парам · эта неделя</h2>
+    <div class="heat" role="table" aria-label="Занятость аудитории">
+      <span></span>{% for d in st.by_day %}<span class="h">{{ d[0] }}</span>{% endfor %}
+      {% for row in st.heat %}<span class="h">{{ loop.index }}</span>{% for busy in row %}<span class="{{ 'busy' if busy else 'free' }}" title="{{ 'занято' if busy else 'свободно' }}"></span>{% endfor %}{% endfor %}
+    </div>
+    <p class="muted small">Тёмная клетка — пара занята, светлая — свободна.</p>
+  </section>
+  {% else %}
+  <section class="card">
+    <h2>По дням · эта неделя</h2>
+    <div class="hbars">
+      {% for name, n in st.by_day %}
+      <div><span>{{ name }}</span><i><em style="width: {{ (100 * n / st.day_max)|round|int }}%"></em></i><b>{{ n }}</b></div>
+      {% endfor %}
+    </div>
+    <p class="muted small">пар в день</p>
+  </section>
+  {% endif %}
+
+  {% for title_, parts in [('По типам занятий', st.by_type), ('По формам обучения', st.by_form if st.by_form|length > 1 else [])] if parts %}
+  <section class="card">
+    <h2>{{ title_ }}</h2>
+    <div class="stack">{% for p in parts %}<i class="t-{{ p.key }}" style="width: {{ p.pct }}%"></i>{% endfor %}</div>
+    {% for p in parts %}
+    <div class="part t-{{ p.key }}"><i></i><span>{{ p.label }}</span><b>{{ p.hours }} ч</b><small>{{ p.pct }}%</small></div>
+    {% endfor %}
+  </section>
+  {% endfor %}
+</div>
+
+{% if st.rows %}
+<section class="card">
+  <div class="card-head">
+    <h2>{% if kind == 'discipline' %}Группы{% else %}Дисциплины{% endif %} семестра</h2>
+    <a class="btn" href="?view=stats{% if form %}&amp;form={{ form_codes[form][0] }}{% endif %}{% if sub %}&amp;sub={{ sub }}{% endif %}&amp;format=xlsx">Скачать в Excel</a>
+  </div>
+  <div class="table-wrap">
+    <table class="tbl">
+      <thead><tr><th>{% if kind == 'discipline' %}Группа{% else %}Дисциплина{% endif %}</th><th>Занятия</th><th>{% if kind == 'teacher' %}Группы{% else %}Преподаватели{% endif %}</th><th class="num">Прошло / всего, ак. ч</th></tr></thead>
+      <tbody>
+      {% for r in st.rows %}
+        <tr>
+          <td><a href="{{ r.url }}">{{ r.title }}</a></td>
+          <td><span class="chips">{% for t in r.types %}<span class="l-chip t-{{ t }}">{{ type_short[t] }}</span>{% endfor %}</span></td>
+          <td>{% for p in r.people[:3] %}<a href="{{ group_url(p) if kind == 'teacher' else teacher_url(p) }}">{{ p }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% if r.people|length > 3 %} и ещё {{ r.people|length - 3 }}{% endif %}</td>
+          <td class="num"><span class="progress"><i><em style="width: {{ (100 * r.done / (r.total or 1))|round|int }}%"></em></i>{{ r.done }} / {{ r.total }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="muted small" style="margin:10px 0 0">По расписанию: каждая неделя семестра с учётом верхней и нижней, занятия заочников — по своим датам. Одно время в один день считается один раз.</p>
+</section>
+{% endif %}

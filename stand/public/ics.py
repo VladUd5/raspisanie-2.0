@@ -10,8 +10,8 @@ from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
 
-from public.week import TYPE_SHORT, Lesson, _change_for, _merge
-from semester import now, semester_for, tz, week_type_on
+from public.week import TYPE_SHORT, Lesson, _change_for, expand
+from semester import now, semester_for, tz
 
 PAST_DAYS = 14
 TTL = "PT6H"
@@ -44,24 +44,11 @@ def _vtimezone(name: str, at: datetime) -> list[str]:
 
 
 def occurrences(items: pd.DataFrame, rows: pd.DataFrame, today: date) -> list[tuple[date, Lesson]]:
+    """Очники — до конца текущего семестра, заочники — все будущие даты; с PAST_DAYS дней назад."""
     start = today - timedelta(days=PAST_DAYS)
-    dated_groups = {(i, f, g) for i, f, g, d in zip(items["institute"], items["study_form"], items["group_name"],
-                                                    items["date"]) if d}
-    zao = [(i, f, g) in dated_groups for i, f, g in zip(rows["institute"], rows["study_form"], rows["group_name"])]
-    weekly = rows[(rows["date"] == "") & ~pd.Series(zao, index=rows.index, dtype=bool)]
-    dated = rows[(rows["date"] != "") & (rows["date"] >= start.isoformat())]
-    picked = [(date.fromisoformat(r.date), r, "") for r in dated.itertuples()]
     sem = semester_for(today)
-    if sem is not None and not weekly.empty:
-        d = max(start, sem[0])
-        by_day = {i: list(part.itertuples()) for i, part in weekly.groupby("day_idx")}
-        while d <= sem[1]:
-            wt = week_type_on(d)
-            for r in by_day.get(d.weekday(), []):
-                if r.week_type in ("both", wt):
-                    picked.append((d, r, ""))
-            d += timedelta(days=1)
-    return [(d, les) for d, part in _merge(picked).items() for les in part]
+    end = sem[1] if sem is not None else start - timedelta(days=1)
+    return expand(items, rows, start, end, dated_until=date.max)
 
 
 def calendar(name: str, items: pd.DataFrame, rows: pd.DataFrame, changes: pd.DataFrame, page_url: str,
