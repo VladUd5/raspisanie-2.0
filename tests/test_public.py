@@ -161,3 +161,17 @@ def test_teacher_form_switch_and_marks(mixed_client):
     assert mixed_client.get(teacher["url"], params={"form": "мусор"}).status_code == 200
     # на странице группы переключателя нет
     assert "Все формы" not in mixed_client.get("/g/Б-Э-101").text
+
+
+def test_teacher_ics_form_filter(mixed_client):
+    url = next(e for e in mixed_client.get("/api/search", params={"q": "шалаева"}).json()
+               if e["kind"] == "преподаватель")["url"]
+    get = lambda **p: mixed_client.get(url + ".ics", params=p).text.replace("\r\n ", "")   # склеить перенос строк
+    full, zao, och = get(), get(form="zaoch"), get(form="och")
+    assert "Право" in full and "История России" in full
+    assert "Право" in zao and "История России" not in zao and "заочная форма" in zao
+    assert "История России" in och and "Право" not in och
+    uid = lambda body: {l for l in body.split("\r\n") if l.startswith("UID:")}
+    assert uid(zao) <= uid(full) and uid(och) <= uid(full) and not uid(zao) & uid(och)
+    assert get(form="мусор").count("BEGIN:VEVENT") == full.count("BEGIN:VEVENT")
+    assert "?form=zaoch" in mixed_client.get(url).text.split('id="calendar"')[1]

@@ -185,17 +185,22 @@ def group_ics(request: Request, name: str, sub: int | None = None):
 
 
 @app.get("/t/{name:path}.ics")
-def teacher_ics(request: Request, name: str):
-    return _ics(request, "teacher", name, f"Расписание: {name}", f"t:{name}", teacher_url(name), None)
+def teacher_ics(request: Request, name: str, form: str = ""):
+    return _ics(request, "teacher", name, f"Расписание: {name}", f"t:{name}", teacher_url(name), None, form)
 
 
-def _ics(request, kind, key, cal_name, scope, page, sub):
+def _ics(request, kind, key, cal_name, scope, page, sub, form_code: str = ""):
     data = store.get()
     if data is None:
         return Response("Данные готовятся", status_code=503)
     rows = week.select(data.items, kind, key)
     if rows.empty:
         return Response("Не найдено", status_code=404)
+    form = week.FORM_BY_CODE.get(form_code)
+    if form:                                  # UID событий те же, что в общем календаре
+        rows = rows[rows["study_form"] == form]
+        cal_name += f" ({form.lower()} форма)"
+        page += f"?form={form_code}"
     base = public_url() or str(request.base_url).rstrip("/")
     body = ics.calendar(cal_name, data.items, rows, data.changes, base + page, scope, sub)
     return Response(body, media_type="text/calendar; charset=utf-8",

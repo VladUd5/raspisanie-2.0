@@ -123,14 +123,16 @@
     <div>
       <p>Подпишитесь один раз — пары, новые недели и замены сами появятся в Google, Apple или Яндекс Календаре.</p>
       <div class="btns">
-        <a class="btn primary" href="webcal://{{ feed }}">Подписаться{% if subgroups %} на все занятия{% endif %}</a>
+        <a class="btn primary" href="webcal://{{ feed }}">Подписаться{% if subgroups or forms|length > 1 %} на все занятия{% endif %}</a>
         {% for s in subgroups %}<a class="btn" href="webcal://{{ feed }}?sub={{ s }}">Только подгруппа {{ s }}</a>{% endfor %}
+        {% if forms|length > 1 %}{% for f in forms if f in form_codes %}<a class="btn" href="webcal://{{ feed }}?form={{ form_codes[f][0] }}">Только {{ f|lower }} форма</a>{% endfor %}{% endif %}
       </div>
     </div>
     <div>
       <details>
         <summary>Как подписаться вручную</summary>
         <p>Ссылка для подписки:<code>{{ base ~ ics_path }}</code></p>
+        {% if forms|length > 1 %}<p>Только одна форма обучения — добавьте к ссылке {% for f in forms if f in form_codes %}<code style="display:inline;padding:2px 6px">?form={{ form_codes[f][0] }}</code> ({{ f|lower }}){% if not loop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
         <p><b>iPhone:</b> Настройки → Календарь → Учётные записи → Добавить → Другое → Подписной календарь → вставьте ссылку.</p>
         <p><b>Android и Google:</b> на компьютере откройте calendar.google.com → «Другие календари» → «+» → «Добавить по URL». Google обновляет подписку раз в несколько часов.</p>
       </details>
