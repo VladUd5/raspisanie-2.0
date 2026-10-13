@@ -85,3 +85,8 @@ def public_url() -> str:
 
 def staff_base_path() -> str:
     return os.environ.get("STAFF_BASE_PATH", "rukovodstvo").strip("/")
+
+
+def kug_request_path() -> Path:
+    """Запрос «проверить графики учебного процесса» из версии для руководства."""
+    return data_dir() / "kug.request"

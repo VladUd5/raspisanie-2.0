@@ -50,7 +50,19 @@ def _new_reports() -> int:
         return 0
 
 
+def _draft_sessions() -> int:
+    try:
+        conn = feedback.connect(feedback_db_path())
+        try:
+            return conn.execute("SELECT COUNT(*) FROM sessions WHERE status = 'draft'").fetchone()[0]
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return 0
+
+
 n_new = _new_reports()
+n_drafts = _draft_sessions()
 pages = st.navigation({
     "Расписание": [
         st.Page("views/summary.py", title="Сводка", icon=":material/space_dashboard:", default=True),
@@ -61,6 +73,7 @@ pages = st.navigation({
         st.Page("views/infographics.py", title="Инфографика", icon=":material/insights:"),
         st.Page("views/changes.py", title="Изменения", icon=":material/published_with_changes:"),
         st.Page("views/reports.py", title=f"Сообщения ({n_new})" if n_new else "Сообщения", icon=":material/mail:"),
+        st.Page("views/sessions.py", title=f"Сессии ({n_drafts})" if n_drafts else "Сессии", icon=":material/event:"),
         st.Page("views/export.py", title="Выгрузка", icon=":material/download:"),
     ],
     "Служебное": [

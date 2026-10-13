@@ -11,8 +11,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 import directory
+import kug
 from collector import read_status
 from config import feedback_db_path, public_url, reports_per_hour, site_title
+from directory import site_base
 from feedback import store as feedback
 from labels import DAYS, SHORT_DAYS
 from public import ics, stats, week
@@ -78,7 +80,7 @@ def _mins(m: int) -> str:
     return f"{h} ч {r} мин" if r else f"{h} ч"
 
 
-HELPERS = dict(ddmm=_ddmm, when_full=_when_full, when_day=_when_day, plural=_plural, mins=_mins,
+HELPERS = dict(months=week.MONTHS, ddmm=_ddmm, when_full=_when_full, when_day=_when_day, plural=_plural, mins=_mins,
                short_days=SHORT_DAYS, day_names=DAYS, content=week.content)
 
 
@@ -180,7 +182,31 @@ def _entity(request: Request, kind: str, key, title: str, subtitle: str, ics_pat
                   up=week.upcoming(w), show_day=_show_day(w, day_param), kind_title=KIND_TITLE[kind],
                   forms=forms if kind != "group" else [], form=form, form_codes=week.FORMS, view=view, st=st,
                   type_short=stats.TYPE_SHORT, who=_person(key) if kind == "teacher" else None,
+                  session=_session_info(data.items, rows, key) if kind == "group" else None, site_base=site_base(),
                   directory_date=_directory_date())
+
+
+def _session_info(items, rows, name: str) -> dict | None:
+    """Сессия группы (подтверждённые даты из графика) и ближайшие зачёты/экзамены по расписанию."""
+    t = today()
+    exams = [(d, les) for d, les in week.expand(items, rows, t, t + timedelta(days=45))
+             if les.type_class == "exam" and not les.cancelled]
+    info = {"periods": [], "file": "", "title": "", "exams": sorted(exams, key=lambda x: (x[0], x[1].time_from))[:8]}
+    forms = sorted(set(rows["study_form"]))
+    try:
+        conn = feedback.connect(feedback_db_path())
+        try:
+            info.update(kug.for_group(conn, name, forms[0] if forms else ""))
+        finally:
+            conn.close()
+    except Exception:                                    # noqa: BLE001 — без графиков страница всё равно работает
+        pass
+    upcoming = [(a, b, n) for a, b, n in info["periods"] if b >= t]
+    info["next"] = upcoming[0] if upcoming else None
+    info["days_to"] = (upcoming[0][0] - t).days if upcoming else None
+    if not info["next"] and not info["file"] and not info["exams"]:
+        return None
+    return info
 
 
 def _xlsx(st, kind: str, title: str) -> Response:

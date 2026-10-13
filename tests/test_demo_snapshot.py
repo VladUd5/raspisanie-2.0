@@ -14,7 +14,7 @@ ROOT = Path(__file__).parent.parent
 # Словарь написаний проверен на этом снапшоте; новые сборы рядом с ним тест не трогают.
 DEMO = [p for p in [ROOT / "data" / "snapshots" / "2026-10-07_144819.json"] if p.exists()]
 APP = str(ROOT / "stand" / "app.py")
-PAGES = ["summary", "teachers", "rooms", "disciplines", "groups", "infographics", "changes", "reports", "history",
+PAGES = ["summary", "teachers", "rooms", "disciplines", "groups", "infographics", "changes", "reports", "sessions", "history",
          "quality", "spellings", "export"]
 
 # Сверка автоправил со словарём (точность, полнота): замер 2026-10-07 минус 1 п.п.

@@ -48,8 +48,10 @@
 {% if who %}{% with p = who %}{% include "teacher_card.html" %}{% endwith %}{% endif %}
 
 {% if view == 'stats' %}
+{% if session %}{% include "session_card.html" %}{% endif %}
 {% include "stats.html" %}
 {% else %}
+{% if session and ((session.days_to is not none and session.days_to <= 30) or session.exams) %}{% include "session_card.html" %}{% endif %}
 
 <nav class="weekbar" aria-label="Неделя">
   <div class="weekbar-l">

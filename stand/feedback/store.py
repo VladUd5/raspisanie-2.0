@@ -1,4 +1,4 @@
-"""Сообщения пользователей об ошибках в расписании (data/feedback.db).
+"""Постоянная база data/feedback.db: сообщения пользователей об ошибках, графики учебного процесса и сессии.
 
 В отличие от schedule.db эта база не пересобирается: схема меняется только пошаговыми
 миграциями (PRAGMA user_version), данные не удаляются. Контакт не собираем — версия для
@@ -27,6 +27,16 @@ MIGRATIONS = [
     CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
     CREATE INDEX ix_reports_status ON reports(status);
     CREATE INDEX ix_rate_ip ON rate(ip_hash, at);""",
+    # 2: графики учебного процесса (kug.py) и даты сессий — черновики распознавания и подтверждённые
+    """CREATE TABLE kug_files (
+        url TEXT PRIMARY KEY, title TEXT, program TEXT, form TEXT, code TEXT, code_manual INTEGER DEFAULT 0,
+        courses TEXT, status TEXT, message TEXT, checked_at TEXT);
+    CREATE TABLE sessions (
+        id INTEGER PRIMARY KEY, file_url TEXT NOT NULL, course INTEGER NOT NULL, start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', source TEXT NOT NULL DEFAULT 'auto',
+        note TEXT DEFAULT '', updated_at TEXT);
+    CREATE INDEX ix_sessions_file ON sessions(file_url, course);
+    CREATE INDEX ix_kug_code ON kug_files(code, form);""",
 ]
 
 FIELDS = ["kind", "text", "page", "group_name", "teacher", "room", "lesson", "lesson_date", "snapshot_id"]

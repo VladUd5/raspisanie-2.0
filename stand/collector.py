@@ -11,13 +11,15 @@
 """
 import json
 import sys
+import threading
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import directory
-from config import (collect_timeout_s, db_path, parser_url, request_path, schedule_url, snapshots_dir,
-                    status_path)
+import kug
+from config import (collect_timeout_s, db_path, feedback_db_path, kug_request_path, parser_url, request_path,
+                    schedule_url, snapshots_dir, status_path)
 from etl.collect import CollectError, collect
 from etl.load import connect, ensure_loaded, read_snapshot
 from semester import now
@@ -109,6 +111,33 @@ def request_collect() -> bool:
     return True
 
 
+_kug_lock = threading.Lock()
+
+
+def refresh_kug_background(force: bool = False) -> None:
+    """Распознавание графиков идёт минуты — в отдельном потоке, чтобы не задерживать сбор расписания."""
+    def job():
+        if not _kug_lock.acquire(blocking=False):
+            return
+        try:
+            print(refresh_kug(force), flush=True)
+        finally:
+            _kug_lock.release()
+    threading.Thread(target=job, daemon=True).start()
+
+
+def refresh_kug(force: bool = False) -> str:
+    """Графики учебного процесса: новые файлы на сайте вуза → черновики сессий (feedback.db)."""
+    from feedback import store
+    conn = store.connect(feedback_db_path())
+    try:
+        return kug.refresh(conn, directory.site_base(), kug.http_get(), force=force)
+    except Exception as e:                                       # noqa: BLE001 — сайт недоступен и т. п.
+        return f"Графики учебного процесса не проверены: {e}"
+    finally:
+        conn.close()
+
+
 def run_forever(times: list[str], poll_s: float = 15) -> None:
     errors = load_db()
     for name, err in errors:
@@ -116,9 +145,15 @@ def run_forever(times: list[str], poll_s: float = 15) -> None:
     msg = directory.refresh()
     if msg:
         print(msg, flush=True)
+    refresh_kug_background()                          # при старте: только новые файлы, в фоне
+    last_kug = now().date()
     due = next_run(now(), times)
     print(f"collector: сбор в {', '.join(times)}; ближайший {due:%d.%m %H:%M}", flush=True)
     while True:
+        kreq = kug_request_path()
+        if kreq.exists():
+            kreq.unlink(missing_ok=True)
+            refresh_kug_background()
         req = request_path()
         if req.exists():
             req.unlink(missing_ok=True)
@@ -130,6 +165,9 @@ def run_forever(times: list[str], poll_s: float = 15) -> None:
             msg = directory.refresh()                    # не чаще раза в сутки
             if msg:
                 print(msg, flush=True)
+            if last_kug != now().date():                  # раз в сутки: только новые файлы
+                refresh_kug_background()
+                last_kug = now().date()
         time.sleep(poll_s)
 
 
@@ -140,6 +178,8 @@ if __name__ == "__main__":
         print(run_once("вручную")["message"])
     elif cmd == "directory":
         print(directory.refresh(0))
+    elif cmd == "kug":
+        print(refresh_kug(force="--all" in sys.argv))
     elif cmd == "load":
         for name, err in load_db():
             print(f"снапшот {name} не загружен: {err}")

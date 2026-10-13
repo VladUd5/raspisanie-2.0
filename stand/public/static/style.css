@@ -266,6 +266,15 @@ footer { max-width: 1240px; margin: 0 auto; padding: 0 20px 28px; display: flex;
 .who dt { color: var(--muted); padding-top: 1px; }
 .who dd { margin: 0; }
 
+.session-card { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 16px; background: var(--exam); color: var(--ink); border-color: transparent; }
+.session-card > svg { color: var(--exam-i); }
+.session-card.calm { background: var(--surface); border-color: var(--line); }
+.session-body { flex: 1 1 360px; display: flex; flex-direction: column; gap: 4px; }
+.session-body > b { font-size: 16px; }
+.session-body > span { font-size: 13.5px; color: var(--ink-2); }
+.exam-list { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
+.exam-list li { margin: 2px 0; }
+
 /* ── подписка ─────────────────────────────────────────── */
 .cal { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
 .cal p { margin: 0 0 10px; color: var(--ink-2); }

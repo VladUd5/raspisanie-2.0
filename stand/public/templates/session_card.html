@@ -1,0 +1,23 @@
+{# Сессия группы: session — app._session_info #}
+{% set nx = session.next %}
+<section class="card session-card{% if not nx %} calm{% endif %}" aria-label="Сессия">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg>
+  <div class="session-body">
+    {% if nx %}
+    <b>{{ nx[2] }}: {{ nx[0].day }} {{ months[nx[0].month - 1] }} – {{ nx[1].day }} {{ months[nx[1].month - 1] }}</b>
+    <span>{% if session.days_to is not none and session.days_to > 0 %}До начала — {{ session.days_to }} {{ plural(session.days_to, 'день', 'дня', 'дней') }}.{% else %}Идёт сейчас.{% endif %}
+      Даты — из календарного учебного графика; дни зачётов и экзаменов появятся в расписании, когда их опубликуют.</span>
+    {% elif session.file %}
+    <b>Сессия — по графику учебного процесса</b>
+    <span>Даты сессии для группы ещё не проверены учебным отделом — смотрите график.</span>
+    {% else %}
+    <b>Зачёты и экзамены</b>
+    {% endif %}
+    {% if session.exams %}
+    <ul class="exam-list">
+      {% for d, l in session.exams %}<li><b>{{ d.day }} {{ months[d.month - 1] }}</b>, {{ l.time_from }} — {{ l.type_title|lower }} «{{ l.discipline }}»{% if l.rooms %}, {% for b, r in l.rooms %}{{ b }} · {{ r }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% if session.file %}<a class="btn" href="{{ site_base }}{{ session.file }}" target="_blank" rel="noopener">График (PDF)</a>{% endif %}
+</section>
