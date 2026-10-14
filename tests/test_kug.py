@@ -125,3 +125,76 @@ def test_for_group_picks_file_with_its_course(tmp_path):
     kug.save_file(conn, rest, "ok", "")
     assert kug.for_group(conn, "Б-ПИ-101", "Очная")["file"] == "/f/1.pdf"
     assert kug.for_group(conn, "Б-ПИ-301", "Очная")["file"] == "/f/23.pdf"
+
+
+def _year(**weeks) -> list[str]:
+    w = ["......"] * 52
+    for k, v in weeks.items():
+        w[int(k[1:]) - 1] = v
+    return w
+
+
+def test_periods_kinds_holidays_and_noise():
+    marks = _year(w1="x.....",                   # «*» в понедельник 31.08 — до 1 сентября, не считается
+                  w10="..=...",                  # праздник внутри теории — теория
+                  w20="....Эx", w21="ЭЭЭЭКК",     # одиночный «x» внутри сессии — шум
+                  w22="КККККК",
+                  w41="ЭЭЭЭЭ.", w42="xxxxxx",     # суббота-«пусто» между сессией и практикой — шум
+                  w43="КККККК")
+    got = kug.periods(marks, 2026)
+    assert got == [("theory", date(2026, 9, 1), date(2027, 1, 14)),
+                   ("session", date(2027, 1, 15), date(2027, 1, 21)),
+                   ("vacation", date(2027, 1, 22), date(2027, 1, 30)),
+                   ("theory", date(2027, 2, 1), date(2027, 6, 5)),
+                   ("session", date(2027, 6, 7), date(2027, 6, 12)),
+                   ("practice", date(2027, 6, 14), date(2027, 6, 19)),
+                   ("vacation", date(2027, 6, 21), date(2027, 6, 26)),
+                   ("theory", date(2027, 6, 28), date(2027, 8, 28))]
+
+
+def test_updated_file_draft_lies_next_to_confirmed_and_confirm_replaces(tmp_path):
+    conn = store.connect(tmp_path / "f.db")
+    f = kug.KugFile("/f/a.pdf", "График_Б-ЛА_1-4курс_оч_2026-2027", "П", "Очная", "Б-ЛА", [1])
+    kug.save_file(conn, f, "ok", "")
+    old = [("theory", date(2026, 9, 1), date(2027, 1, 16)), ("session", date(2027, 1, 18), date(2027, 1, 28))]
+    kug.save_drafts(conn, f.url, {1: old})
+    kug.confirm_drafts(conn, f.url)
+    assert kug.save_drafts(conn, f.url, {1: old}, alongside=True) == 0          # график тот же — черновика нет
+    new = [("theory", date(2026, 9, 1), date(2027, 1, 9)), ("session", date(2027, 1, 11), date(2027, 1, 23))]
+    assert kug.save_drafts(conn, f.url, {1: new}) == 0                          # без пометки «обновлён» — не трогаем
+    assert kug.save_drafts(conn, f.url, {1: new}, alongside=True) == 2
+    assert kug.for_group(conn, "Б-ЛА-101", "Очная")["periods"][0][:2] == (date(2027, 1, 18), date(2027, 1, 28))
+    kug.confirm_drafts(conn, f.url)
+    rows = conn.execute("SELECT kind, start_date, end_date, status FROM sessions ORDER BY start_date").fetchall()
+    assert [tuple(r) for r in rows] == [("theory", "2026-09-01", "2027-01-09", "confirmed"),
+                                        ("session", "2027-01-11", "2027-01-23", "confirmed")]
+    assert kug.all_periods(conn)[("Б-ЛА", "Очная", 1)][1] == ("session", date(2027, 1, 11), date(2027, 1, 23))
+
+
+def test_refresh_rereads_file_changed_on_site(tmp_path, monkeypatch):
+    conn = store.connect(tmp_path / "f.db")
+    page = EDUOP.split("<tr itemprop=\"eduOp\"><td itemprop=\"eduCode\">09.02.07")[0] + "</table>"
+    monkeypatch.setattr(kug, "render", lambda b: b)
+    reads = []
+    def fake_marks(pdf, templates=None):
+        reads.append(pdf)
+        return [_year(w21="ЭЭЭЭЭЭ")] * 4 if pdf == b"v1" else [_year(w20="ЭЭЭЭЭЭ")] * 4
+    monkeypatch.setattr(kug, "marks", fake_marks)
+    site = {"pdf": b"v1", "ver": '"a"|Mon'}
+    def get(url):
+        return page.encode() if url.endswith("eduop") else site["pdf"]
+    def head(url):
+        return site["ver"] if url.endswith("Grafik_B-LA_1-4kurs_och_2026-2027.pdf") else ""
+    kug.refresh(conn, "https://s", get, today=date(2026, 10, 14), head=head)
+    kug.confirm_drafts(conn, "/f/Grafik_B-LA_1-4kurs_och_2026-2027.pdf")
+    n = len(reads)
+    kug.refresh(conn, "https://s", get, today=date(2026, 10, 15), head=head)
+    assert len(reads) == n                                   # версия та же — файл не скачивается
+    site.update(pdf=b"v2", ver='"b"|Tue')
+    msg = kug.refresh(conn, "https://s", get, today=date(2026, 10, 16), head=head)
+    assert "обновлено на сайте 1" in msg
+    m = conn.execute("SELECT message FROM kug_files WHERE url LIKE '%Grafik_B-LA%'").fetchone()[0]
+    assert "обновлён" in m and "сверьте" in m
+    drafts = conn.execute("SELECT kind, start_date FROM sessions WHERE status = 'draft' AND kind = 'session' "
+                          "AND course = 1 AND file_url LIKE '%Grafik_B-LA%'").fetchall()
+    assert [tuple(r) for r in drafts] == [("session", "2027-01-11")]

@@ -12,19 +12,27 @@ from semester import now
 STATUS = {"draft": "черновик", "confirmed": "подтверждено", "rejected": "отклонено"}
 FILE_STATUS = {"ok": "распознан", "empty": "сессий не найдено", "error": "не прочитан"}
 
+KIND = kug.KIND_TITLE
 st.title("Сессии")
-st.caption("Даты сессий берутся из календарных учебных графиков на сайте вуза (сканы PDF). Программа распознаёт "
-           "в них отметки «Э» и предлагает черновик; на сайт для студентов попадают только подтверждённые даты. "
-           "Проверьте черновик по скану, поправьте даты, если нужно, и нажмите «Сохранить».")
+st.caption("Периоды берутся из календарных учебных графиков на сайте вуза (сканы PDF): теоретическое обучение, "
+           "сессия («Э»), каникулы («К»), практика, НИР и ВКР (У, П, Н, Д). Программа распознаёт их и предлагает "
+           "черновик. На сайт для студентов попадают только подтверждённые периоды: даты сессии, а в дни сессии, "
+           "каникул и практики еженедельные пары не показываются и не входят в часы. Праздники берутся из "
+           "производственного календаря. Проверьте черновик по скану, поправьте, если нужно, и нажмите «Сохранить». "
+           "Графики проверяются раз в сутки; если вуз заменил файл, он будет распознан заново, а у графика появится "
+           "пометка «обновлён — сверьте».")
 
 conn = store.connect(feedback_db_path())
 files = pd.read_sql_query("SELECT * FROM kug_files ORDER BY program, form, title", conn)
 sess = pd.read_sql_query("SELECT * FROM sessions ORDER BY file_url, course, start_date", conn)
+if sess.empty:
+    sess = pd.DataFrame(columns=["file_url", "course", "kind", "start_date", "end_date", "status"])
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Графиков", len(files), border=True)
-c2.metric("Черновиков на проверку", int((sess["status"] == "draft").sum()) if not sess.empty else 0, border=True)
-c3.metric("Подтверждено", int((sess["status"] == "confirmed").sum()) if not sess.empty else 0, border=True)
+drafts = set(sess.loc[sess["status"] == "draft", "file_url"])
+c2.metric("Графиков на проверку", len(drafts), border=True)
+c3.metric("Подтверждённых графиков", len(set(sess.loc[sess["status"] == "confirmed", "file_url"]) - drafts), border=True)
 c4.metric("Не прочитано", int((files["status"] == "error").sum()) if not files.empty else 0, border=True)
 
 left, right = st.columns([3, 1])
@@ -76,12 +84,15 @@ for f in shown[:60]:
                              key=f"code_{f.url}")
         table = pd.DataFrame({
             "Курс": rows["course"].astype(int) if not rows.empty else pd.Series(dtype=int),
+            "Вид": rows["kind"].map(KIND) if not rows.empty else pd.Series(dtype=str),
             "Начало": pd.to_datetime(rows["start_date"]).dt.date if not rows.empty else pd.Series(dtype=object),
             "Конец": pd.to_datetime(rows["end_date"]).dt.date if not rows.empty else pd.Series(dtype=object),
             "Статус": rows["status"].map(STATUS) if not rows.empty else pd.Series(dtype=str)})
         edited = st.data_editor(
             table, num_rows="dynamic", hide_index=True, key=f"ed_{f.url}", width="stretch",
             column_config={"Курс": st.column_config.NumberColumn(min_value=1, max_value=6, step=1, required=True),
+                           "Вид": st.column_config.SelectboxColumn(options=list(KIND.values()), default=KIND["session"],
+                                                                   required=True),
                            "Начало": st.column_config.DateColumn(format="DD.MM.YYYY", required=True),
                            "Конец": st.column_config.DateColumn(format="DD.MM.YYYY", required=True),
                            "Статус": st.column_config.SelectboxColumn(options=list(STATUS.values()),
@@ -97,16 +108,17 @@ for f in shown[:60]:
                     conn.execute("UPDATE kug_files SET code = ?, code_manual = ? WHERE url = ?",
                                  (code.strip(), int(code.strip() != (f.code or "")), f.url))
                     conn.execute("DELETE FROM sessions WHERE file_url = ?", (f.url,))
+                    kinds = {v: k for k, v in KIND.items()}
                     for r in edited.itertuples():
-                        conn.execute("""INSERT INTO sessions (file_url, course, start_date, end_date, status, source,
-                                        updated_at) VALUES (?, ?, ?, ?, ?, 'manual', ?)""",
-                                     (f.url, int(r.Курс), date.isoformat(r.Начало), date.isoformat(r.Конец),
-                                      back.get(r.Статус, "confirmed"), now().isoformat(timespec="seconds")))
+                        conn.execute("""INSERT INTO sessions (file_url, course, kind, start_date, end_date, status,
+                                        source, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'manual', ?)""",
+                                     (f.url, int(r.Курс), kinds.get(r.Вид, "session"), date.isoformat(r.Начало),
+                                      date.isoformat(r.Конец), back.get(r.Статус, "confirmed"),
+                                      now().isoformat(timespec="seconds")))
                 st.rerun()
-        if n_draft and b2.button("Подтвердить черновик как есть", key=f"ok_{f.url}"):
-            with conn:
-                conn.execute("UPDATE sessions SET status = 'confirmed', updated_at = ? WHERE file_url = ? "
-                             "AND status = 'draft'", (now().isoformat(timespec="seconds"), f.url))
+        if n_draft and b2.button("Подтвердить черновик как есть", key=f"ok_{f.url}",
+                                 help="По курсам, где есть черновик, он заменяет прежние подтверждённые периоды"):
+            kug.confirm_drafts(conn, f.url)
             st.rerun()
         if b3.toggle("Показать скан", key=f"img_{f.url}"):
             try:

@@ -206,3 +206,24 @@ def test_teacher_card_from_directory(client, tmp_path):
     assert "Шалаева Наталья Владимировна" in page and "Доцент, канд. ист. наук" in page
     assert "Кафедра «История»" in page and "ауд. 412" in page and "kaf-hist@vavilovsar.ru" in page
     assert "каф. «История»" in client.get("/g/Б-Э-101").text                 # в подробностях занятия
+
+
+def test_holiday_and_confirmed_session_hide_weekly_lessons(client, tmp_path):
+    import academic
+    import kug
+    from feedback import store
+    r = client.get("/g/Б-Э-101", params={"week": "2026-11-02"})            # ср 4 ноября — праздник
+    assert "День народного единства" in r.text and "Химия" not in r.text and "История России" in r.text
+    conn = store.connect(tmp_path / "feedback.db")
+    f = kug.KugFile("/f/e.pdf", "График_Б-Э_1-4курс_оч_2026-2027", "П", "Очная", "Б-Э", [1, 2, 3, 4])
+    kug.save_file(conn, f, "ok", "")
+    kug.save_drafts(conn, f.url, {1: [("theory", date(2026, 9, 1), date(2026, 11, 7)),
+                                      ("session", date(2026, 11, 9), date(2026, 11, 14))]})
+    r = client.get("/g/Б-Э-101", params={"week": "2026-11-09"})
+    assert "История России" in r.text                                       # черновик ничего не прячет
+    kug.confirm_drafts(conn, f.url)
+    conn.close()
+    academic.reset()
+    r = client.get("/g/Б-Э-101", params={"week": "2026-11-09"})
+    assert "По графику учебного процесса: сессия 9 ноября – 14 ноября" in r.text and "История России" not in r.text
+    assert "История России" in client.get("/g/Б-БИ-101", params={"week": "2026-11-09"}).text   # у другой группы — нет

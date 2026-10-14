@@ -1,8 +1,9 @@
 """Неделя занятий для группы, преподавателя или аудитории.
 
 Очники и очно-заочники: занятия повторяются каждую неделю; на конкретной неделе остаются общие
-и занятия её типа (верхняя/нижняя — по дате начала семестра). Вне семестра показываются обе
-недели с пометками. Заочники: занятия с датами — из своей недели сессии; занятия заочников без
+и занятия её типа (верхняя/нижняя — semester.py). Вне семестра показываются обе недели с пометками.
+В праздник (academic.py) еженедельных пар нет; если учебный отдел подтвердил график группы, в дни
+сессии, каникул и практики еженедельных пар тоже нет (зачёты, экзамены и консультации остаются). Заочники: занятия с датами — из своей недели сессии; занятия заочников без
 даты (файлы без дат) — отдельным списком «без даты».
 
 Для страницы неделя раскладывается в сетку: строки — пары (время начала), столбцы — дни.
@@ -13,6 +14,7 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 
+import academic
 from labels import DAYS, PAIRS, SHORT_DAYS
 from semester import monday, now, semester_for, week_type_on
 
@@ -76,6 +78,7 @@ class Day:
     name: str
     is_today: bool
     lessons: list[Lesson] = field(default_factory=list)
+    holiday: str = ""             # название праздника — еженедельных пар нет
 
     @property
     def short(self) -> str:
@@ -103,6 +106,7 @@ class Week:
     prev: date | None
     next: date | None
     dated_only: bool                          # только заочное расписание (листаем недели сессии)
+    period: tuple | None = None               # группа: (вид, начало, конец) подтверждённого не-учебного периода
 
     @property
     def label(self) -> str:
@@ -192,7 +196,9 @@ def build(items: pd.DataFrame, rows: pd.DataFrame, m: date, changes: pd.DataFram
     dated = rows[rows["session_week"] == m.isoformat()]
 
     wt = week_type_on(m) or week_type_on(m + timedelta(days=5))
-    days = [Day(m + timedelta(days=i), DAYS[i], m + timedelta(days=i) == today) for i in range(6)]
+    cal = academic.calendar()
+    days = [Day(m + timedelta(days=i), DAYS[i], m + timedelta(days=i) == today, holiday=cal.holiday(m + timedelta(days=i)))
+            for i in range(6)]
     picked = []
     for r in weekly.itertuples():
         if not 0 <= r.day_idx < 6:
@@ -202,6 +208,8 @@ def build(items: pd.DataFrame, rows: pd.DataFrame, m: date, changes: pd.DataFram
         if dwt is None and wt is not None:
             continue                      # день до начала / после конца семестра
         if dwt is not None and r.week_type not in ("both", dwt):
+            continue
+        if not held(cal, r, d):
             continue
         picked.append((d, r, "" if dwt is not None else WEEK_MARK.get(r.week_type, "")))
     for r in dated.itertuples():
@@ -232,7 +240,21 @@ def build(items: pd.DataFrame, rows: pd.DataFrame, m: date, changes: pd.DataFram
         nxt = min([w for w in weeks if w > m], default=None)
     else:
         prev, nxt = m - timedelta(days=7), m + timedelta(days=7)
-    return Week(m, wt, days, undated_lessons, prev, nxt, dated_only)
+    period = None
+    if who and who[0] == "group" and not rows.empty:
+        form = rows["study_form"].iloc[0]
+        period = next(((k, a, b) for k, a, b in cal.periods_of(who[1], form)
+                       if k != "theory" and a <= m + timedelta(days=5) and b >= m), None)
+    return Week(m, wt, days, undated_lessons, prev, nxt, dated_only, period)
+
+
+def held(cal: "academic.Calendar", r, d: date) -> bool:
+    """Еженедельное занятие r проходит в день d: не праздник и не подтверждённые сессия, каникулы
+    или практика у его группы (зачёты, экзамены, консультации — всегда)."""
+    if cal.holiday(d):
+        return False
+    kind = cal.kind_on(r.group_name, r.study_form, d)
+    return not kind or kind == "theory" or TYPE_CLASS.get(r.lesson_type) == "exam"
 
 
 @dataclass
@@ -287,13 +309,14 @@ def expand(items: pd.DataFrame, rows: pd.DataFrame, start: date, end: date,
     dated = rows[(rows["date"] >= start.isoformat()) & (rows["date"] <= dated_until.isoformat()) & (rows["date"] != "")]
     picked = [(date.fromisoformat(r.date), r, "") for r in dated.itertuples()]
     if not weekly.empty:
+        cal = academic.calendar()
         by_day = {i: list(part.itertuples()) for i, part in weekly.groupby("day_idx")}
         d = start
         while d <= end:
             wt = week_type_on(d)
             if wt is not None:
                 for r in by_day.get(d.weekday(), []):
-                    if r.week_type in ("both", wt):
+                    if r.week_type in ("both", wt) and held(cal, r, d):
                         picked.append((d, r, ""))
             d += timedelta(days=1)
     return [(d, les) for d, part in _merge(picked).items() for les in part]

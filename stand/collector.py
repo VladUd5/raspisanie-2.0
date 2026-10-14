@@ -30,6 +30,8 @@ MIN_REQUEST_INTERVAL = timedelta(minutes=10)   # «проверить сейча
 # Пульс цикла: проверка здоровья контейнера (healthcheck.py file) перезапускает collector, если файл
 # долго не обновлялся — цикл завис (сбор ограничен COLLECT_TIMEOUT_S, поэтому порог с запасом).
 HEARTBEAT = Path("/tmp/collector.alive")
+# версия разбора графиков: поменялась — все графики распознаются заново (подтверждённое не трогается)
+KUG_PARSE = "periods-1"
 
 
 def read_status(path: Path | None = None) -> dict:
@@ -132,11 +134,17 @@ def refresh_kug_background(force: bool = False) -> None:
 
 
 def refresh_kug(force: bool = False) -> str:
-    """Графики учебного процесса: новые файлы на сайте вуза → черновики сессий (feedback.db)."""
+    """Графики учебного процесса: новые и обновлённые на сайте вуза файлы → черновики периодов (feedback.db).
+    Один раз после перехода на периоды (теория, каникулы, практика) все графики разбираются заново."""
     from feedback import store
     conn = store.connect(feedback_db_path())
     try:
-        return kug.refresh(conn, directory.site_base(), kug.http_get(), force=force)
+        once = conn.execute("SELECT value FROM meta WHERE key = 'kug_parse'").fetchone()
+        force = force or not once or once[0] != KUG_PARSE
+        msg = kug.refresh(conn, directory.site_base(), kug.http_get(), force=force, head=kug.http_head())
+        with conn:
+            conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('kug_parse', ?)", (KUG_PARSE,))
+        return msg
     except Exception as e:                                       # noqa: BLE001 — сайт недоступен и т. п.
         return f"Графики учебного процесса не проверены: {e}"
     finally:

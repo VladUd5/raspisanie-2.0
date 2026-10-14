@@ -54,7 +54,7 @@ def _draft_sessions() -> int:
     try:
         conn = feedback.connect(feedback_db_path())
         try:
-            return conn.execute("SELECT COUNT(*) FROM sessions WHERE status = 'draft'").fetchone()[0]
+            return conn.execute("SELECT COUNT(DISTINCT file_url) FROM sessions WHERE status = 'draft'").fetchone()[0]
         finally:
             conn.close()
     except sqlite3.Error:

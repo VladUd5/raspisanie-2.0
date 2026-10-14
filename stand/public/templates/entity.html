@@ -99,10 +99,15 @@
 </section>
 {% endif %}
 
+{% if week.period %}{% set pk, pa, pb = week.period %}
+<p class="note period-note" role="note"><b>По графику учебного процесса: {{ period_titles[pk]|lower }} {{ pa.day }} {{ months[pa.month - 1] }} – {{ pb.day }} {{ months[pb.month - 1] }}.</b>
+  Пары по расписанию в эти дни не проводятся{% if pk == 'session' %}; зачёты, экзамены и консультации — как в расписании{% endif %}.</p>
+{% endif %}
 {% if not week.empty %}<div class="legend" aria-label="Цвета типов занятий">{% for k, label in legend %}<span class="t-{{ k }}"><i></i>{{ label }}</span>{% endfor %}</div>{% endif %}
 
 {% if week.empty %}
-<section class="card"><p class="muted" style="margin:0">На этой неделе занятий нет.</p></section>
+{% set hols = week.days|selectattr('holiday')|map(attribute='holiday')|unique|list %}
+<section class="card"><p class="muted" style="margin:0">На этой неделе занятий нет{% if hols %} — {{ hols|join(', ')|lower }}{% endif %}.</p></section>
 {% else %}
 {% set rows = week.rows %}
 {% if rows %}
@@ -110,15 +115,15 @@
   <div class="wk-corner"></div>
   {% for day in week.days %}{% set i = loop.index0 %}
   <a class="wk-day{% if day.is_today %} is-today{% endif %}" href="{{ href(d=i) }}#wk" data-day="{{ i }}" style="--c: {{ i + 2 }}" {% if i == show_day %}aria-current="true"{% endif %}>
-    <span>{{ day.short|capitalize }}</span><b>{{ day.date.day }}</b>{% if day.is_today %}<small>сегодня</small>{% endif %}
+    <span>{{ day.short|capitalize }}</span><b>{{ day.date.day }}</b>{% if day.holiday %}<small class="hol">праздник</small>{% elif day.is_today %}<small>сегодня</small>{% endif %}
     <i class="{% if day.lessons|selectattr('change')|rejectattr('cancelled')|list %}dot-chg{% elif day.lessons %}dot-has{% endif %}"></i>
   </a>
   {% endfor %}
-  {% for day in week.days %}{% if not day.lessons %}<div class="wk-none" data-d="{{ loop.index0 }}">{% if day.is_today %}Сегодня{% else %}В этот день{% endif %} занятий нет</div>{% endif %}{% endfor %}
+  {% for day in week.days %}{% if not day.lessons %}<div class="wk-none" data-d="{{ loop.index0 }}">{% if day.holiday %}{{ day.holiday }} — занятий нет{% else %}{% if day.is_today %}Сегодня{% else %}В этот день{% endif %} занятий нет{% endif %}</div>{% endif %}{% endfor %}
   {% for row in rows %}{% set r = loop.index0 + 2 %}
   <div class="wk-time" style="--r: {{ r }}">{% if row.pair %}<b>{{ row.pair }} пара</b>{% else %}<b>{{ row.time_from }}</b>{% endif %}<span>{{ row.time_from }}</span><span>{{ row.time_to }}</span></div>
     {% for cell in row.cells %}{% set i = loop.index0 %}{% set day = week.days[i] %}
-  <div class="wk-cell{% if not cell %} empty{% endif %}{% if day.is_today %} is-today{% endif %}" style="--r: {{ r }}; --c: {{ i + 2 }}" data-c="{{ i + 2 }}" data-d="{{ i }}">{% for l in cell %}{% include "lesson.html" %}{% endfor %}</div>
+  <div class="wk-cell{% if not cell %} empty{% endif %}{% if day.is_today %} is-today{% endif %}{% if day.holiday %} is-holiday{% endif %}" style="--r: {{ r }}; --c: {{ i + 2 }}" data-c="{{ i + 2 }}" data-d="{{ i }}">{% if day.holiday and r == 2 %}<div class="wk-hol">{{ day.holiday }}<br>занятий нет</div>{% endif %}{% for l in cell %}{% include "lesson.html" %}{% endfor %}</div>
     {% endfor %}
   {% endfor %}
 </div>

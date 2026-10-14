@@ -72,3 +72,17 @@ def make_snapshot(tmp_path):
     def make(name: str, collected_at: str, ochno=(), zaoch=()) -> Path:
         return write_snapshot(snaps / f"{name}.json", collected_at, ochno, zaoch)
     return make
+
+
+@pytest.fixture(autouse=True)
+def _own_feedback_db(tmp_path_factory, monkeypatch):
+    """Учебный календарь (academic.py) читает feedback.db: по умолчанию тесты не видят настоящую
+    data/ (своя пустая папка); тест, которому нужна своя, задаёт DATA_DIR сам."""
+    import os
+
+    import academic
+    if "DATA_DIR" not in os.environ and "FEEDBACK_DB_PATH" not in os.environ:
+        monkeypatch.setenv("DATA_DIR", str(tmp_path_factory.mktemp("data")))
+    academic.reset()
+    yield
+    academic.reset()

@@ -183,7 +183,7 @@ def _entity(request: Request, kind: str, key, title: str, subtitle: str, ics_pat
                   forms=forms if kind != "group" else [], form=form, form_codes=week.FORMS, view=view, st=st,
                   type_short=stats.TYPE_SHORT, who=_person(key) if kind == "teacher" else None,
                   session=_session_info(data.items, rows, key) if kind == "group" else None, site_base=site_base(),
-                  directory_date=_directory_date())
+                  directory_date=_directory_date(), period_titles=kug.KIND_TITLE)
 
 
 def _session_info(items, rows, name: str) -> dict | None:

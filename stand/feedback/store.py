@@ -37,6 +37,10 @@ MIGRATIONS = [
         note TEXT DEFAULT '', updated_at TEXT);
     CREATE INDEX ix_sessions_file ON sessions(file_url, course);
     CREATE INDEX ix_kug_code ON kug_files(code, form);""",
+    # 3: все периоды графика (теория, сессия, каникулы, практика) и версия файла на сайте (ETag/Last-Modified)
+    """ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'session';
+    ALTER TABLE kug_files ADD COLUMN version TEXT NOT NULL DEFAULT '';
+    CREATE TABLE kug_holidays (file_url TEXT NOT NULL, day TEXT NOT NULL, PRIMARY KEY (file_url, day));""",
 ]
 
 FIELDS = ["kind", "text", "page", "group_name", "teacher", "room", "lesson", "lesson_date", "snapshot_id"]
