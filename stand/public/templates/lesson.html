@@ -7,7 +7,7 @@
         <span class="l-chip">{% if l.cancelled %}Отменено{% else %}{{ l.type_title }}{% endif %}</span>
         {%- if l.subgroup %} подгр. {{ l.subgroup }}{% endif %}{% if l.week_mark %} · {{ l.week_mark }}{% endif %}
         {% if kind != 'group' %}{% for m in l.form_marks %}<span class="tag form">{{ m }}</span>{% endfor %}{% endif %}
-        {% if l.is_now %}<span class="tag now">идёт</span>{% elif ch %}<span class="tag {{ 'added' if ch.kind == 'added' else 'change' }}">{{ change_label.get(ch.kind) }}</span>{% endif %}
+        {% if l.is_now %}<span class="tag now">идёт</span>{% endif %}{% if ch %}<span class="tag {{ 'added' if ch.kind == 'added' else 'change' }}">{{ change_label.get(ch.kind) }}</span>{% endif %}
       </span>
       <span class="l-disc">{{ l.discipline or 'Занятие' }}</span>
       {% if not l.cancelled %}

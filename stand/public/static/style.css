@@ -88,6 +88,7 @@ footer { max-width: 1240px; margin: 0 auto; padding: 0 20px 28px; display: flex;
 .tag.added { background: var(--brand-soft); color: var(--brand-soft-ink); }
 .tag.form { background: var(--surface); color: var(--ink-2); border: 1px solid var(--line); text-transform: none; letter-spacing: 0; }
 .l-type .tag:not(.form) { margin-left: auto; }
+.l-type .tag.now + .tag { margin-left: 0; }
 .note { padding: 12px 14px; border-radius: 12px; background: var(--warn); color: var(--warn-ink); }
 .ok { padding: 12px 14px; border-radius: 12px; background: var(--brand-soft); color: var(--brand-soft-ink); font-weight: 500; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
