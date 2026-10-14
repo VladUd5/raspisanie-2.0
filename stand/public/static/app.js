@@ -102,6 +102,26 @@
     }).join("");
     box.hidden = false;
   }
+  // ── карточка «Сейчас»: минуты считает сервер; если страница висит открытой — раз в 5 минут
+  // берём свежую карточку с той же страницы (без перезагрузки: открытые подробности не закрываются)
+  var REFRESH = 5 * 60 * 1000, fetched = Date.now();
+  function refreshNow() {
+    var card = document.querySelector("[data-nowcard]");
+    if (!card || document.hidden) return;
+    fetched = Date.now();
+    fetch(location.href, { cache: "no-store" }).then(function (r) { return r.ok ? r.text() : null; }).then(function (html) {
+      if (!html) return;
+      var fresh = new DOMParser().parseFromString(html, "text/html").querySelector("[data-nowcard]");
+      var cur = document.querySelector("[data-nowcard]");
+      if (!cur) return;
+      if (fresh) cur.replaceWith(document.importNode(fresh, true)); else cur.remove();
+    }).catch(function () {});
+  }
+  setInterval(refreshNow, REFRESH);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && Date.now() - fetched >= REFRESH) refreshNow();
+  });
+
   var pins = load("pinned-pages");
   tiles("pinned", pins);
   tiles("recent", load("recent-pages").filter(function (x) { return !pins.some(function (p) { return p.url === x.url; }); }).slice(0, 6));

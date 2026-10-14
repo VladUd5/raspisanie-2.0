@@ -70,7 +70,7 @@
 </nav>
 
 {% if up and up.lesson %}{% set l = up.lesson %}
-<section class="nowcard{% if up.state == 'later' %} calm{% endif %}" aria-label="Ближайшее занятие">
+<section class="nowcard{% if up.state == 'later' %} calm{% endif %}" aria-label="Ближайшее занятие" data-nowcard>
   <div>
     <div class="when"><i></i>
       {% if up.state == 'now' %}Сейчас · {% if l.pair %}{{ l.pair }} пара · {% endif %}{{ l.time_from }}–{{ l.time_to }}
@@ -81,7 +81,7 @@
     <div class="what">{{ l.discipline or 'Занятие' }}</div>
   </div>
   <div class="left">
-    {% if up.state == 'now' %}ещё <b>{{ mins(up.minutes) }}</b>
+    {% if up.state == 'now' %}Занятие идёт ещё <b>{{ mins(up.minutes) }}</b>
     {% elif up.state == 'next' %}через <b>{{ mins(up.minutes) }}</b>{% endif %}
   </div>
   <div class="chips">
