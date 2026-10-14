@@ -13,3 +13,4 @@ data/collect.request
 .env
 data/directory.json
 data/directory.tmp
+data/backups/

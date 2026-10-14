@@ -41,6 +41,14 @@ def env_date(name: str) -> str:
     return os.environ.get(name, "").strip()
 
 
+def backup_dir() -> Path:
+    return Path(os.environ.get("BACKUP_DIR", data_dir() / "backups"))
+
+
+def backup_keep_days() -> int:
+    return max(1, int(os.environ.get("BACKUP_KEEP_DAYS", "14")))
+
+
 def feedback_db_path() -> Path:
     return Path(os.environ.get("FEEDBACK_DB_PATH", data_dir() / "feedback.db"))
 

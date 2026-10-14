@@ -4,6 +4,7 @@
                                  «проверить сайт сейчас» из версии для руководства
     python collector.py once   — один сбор сейчас
     python collector.py load   — только привести БД к папке снапшотов
+    python collector.py backup — резервная копия data/ (сама делается раз в сутки)
 
 Сбор, совпавший с последним сохранённым снапшотом, не сохраняется: в status.json пишется только
 время проверки. Так в data/snapshots остаются лишь версии, которые чем-то отличаются, и их можно
@@ -16,6 +17,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import backup
 import directory
 import kug
 from config import (collect_timeout_s, db_path, feedback_db_path, kug_request_path, parser_url, request_path,
@@ -141,6 +143,13 @@ def refresh_kug(force: bool = False) -> str:
         conn.close()
 
 
+def _backup() -> None:
+    try:
+        print(backup.run(), flush=True)
+    except Exception as e:                            # noqa: BLE001 — копия не должна останавливать сбор
+        print(f"резервная копия не сделана: {e}", flush=True)
+
+
 def run_forever(times: list[str], poll_s: float = 15) -> None:
     HEARTBEAT.touch()
     errors = load_db()
@@ -151,6 +160,7 @@ def run_forever(times: list[str], poll_s: float = 15) -> None:
         print(msg, flush=True)
     refresh_kug_background()                          # при старте: только новые файлы, в фоне
     last_kug = now().date()
+    _backup()                                         # при старте — если за сегодня копии ещё нет
     due = next_run(now(), times)
     print(f"collector: сбор в {', '.join(times)}; ближайший {due:%d.%m %H:%M}", flush=True)
     while True:
@@ -173,6 +183,7 @@ def run_forever(times: list[str], poll_s: float = 15) -> None:
             if last_kug != now().date():                  # раз в сутки: только новые файлы
                 refresh_kug_background()
                 last_kug = now().date()
+            _backup()                                     # раз в сутки (за день — один архив)
         time.sleep(poll_s)
 
 
@@ -185,6 +196,8 @@ if __name__ == "__main__":
         print(directory.refresh(0))
     elif cmd == "kug":
         print(refresh_kug(force="--all" in sys.argv))
+    elif cmd == "backup":
+        print(backup.run())
     elif cmd == "load":
         for name, err in load_db():
             print(f"снапшот {name} не загружен: {err}")

@@ -94,6 +94,38 @@ docker compose up -d --build             # контейнеры запомина
 (студенты тогда видят последнюю версию расписания). Для этого стоит попросить отдел ИТ включить
 внешний мониторинг адреса `/healthz` (например, Zabbix вуза или UptimeRobot) с уведомлением.
 
+### Обновление
+
+```bash
+cd "Расписание 2.0"
+git pull --recurse-submodules
+docker compose up -d --build
+```
+
+Пока образы собираются (первый раз около 12 минут, потом — минута-две), работает прежняя версия;
+сайт недоступен лишь несколько секунд при пересоздании контейнеров. Ничего не теряется: данные лежат
+в `data/` (её git не трогает), настройки — в `.env`. Если после обновления что-то не так — вернуться
+на прошлую версию: `git checkout <прошлый коммит> && git submodule update && docker compose up -d --build`.
+
+### Резервные копии
+
+collector раз в сутки (и при старте) складывает в `data/backups/ГГГГ-ММ-ДД.tar.gz` то, что нельзя
+получить с сайта вуза заново: `feedback.db` (сообщения пользователей, проверенные даты сессий) и все
+снапшоты (архив недель заочников). Хранятся последние `BACKUP_KEEP_DAYS` (14) архивов, каждый — сотни
+килобайт. Сделать копию сейчас: `docker compose exec collector python collector.py backup`.
+
+Копии лежат на том же диске, поэтому их стоит забирать на другой сервер или в хранилище вуза, например
+ежедневно `rsync -a <сервер>:<папка проекта>/data/backups/ <куда>`.
+
+Восстановление:
+
+```bash
+docker compose down
+sudo tar -xzf data/backups/2026-10-14.tar.gz -C data/   # feedback.db и snapshots/ (файлы в data/ — от root)
+sudo rm -f data/schedule.db*                        # база расписания пересоберётся из снапшотов
+docker compose up -d
+```
+
 ### Настройки (`.env`)
 
 Все параметры и значения по умолчанию — в `.env.example`. Главное:
@@ -310,7 +342,9 @@ deploy/nginx.conf           nginx: / → public, /rukovodstvo → staff
 .env.example                настройки
 vendor/smart_schedule_parser   парсер (git submodule, не модифицируется)
 stand/
-  collector.py              сбор по расписанию и по запросу, статус
+  collector.py              сбор по расписанию и по запросу, статус, ежедневная резервная копия
+  backup.py                 резервная копия: feedback.db и снапшоты → data/backups
+  healthcheck.py            проверка здоровья контейнера с самоперезапуском
   semester.py               даты семестра, верхняя/нижняя неделя
   public/                   сайт для студентов (FastAPI, шаблоны, CSS/JS, календарь .ics)
   feedback/store.py         сообщения пользователей (feedback.db, миграции)
@@ -328,8 +362,9 @@ data/
   schedule.db               SQLite, пересобирается из снапшотов автоматически
   feedback.db               сообщения пользователей — не удалять, это не кэш
   status.json               результат последней проверки сайта вуза
+  backups/                  ежедневные архивы (последние BACKUP_KEEP_DAYS)
 tests/                      pytest
-docs/                       дизайн и план
+docs/                       дизайн и план; pamyatka-it.md — памятка для отдела ИТ
 ```
 
 Схема БД описана в `stand/etl/load.py` (`SCHEMA`).
