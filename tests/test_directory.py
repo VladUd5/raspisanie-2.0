@@ -1,5 +1,6 @@
 """Справочник кафедр: разбор страниц сайта вуза (образцы — в разметке /sveden/ и страниц кафедр)."""
 import json
+from datetime import timedelta
 
 import directory
 
@@ -83,3 +84,13 @@ def test_short_degree_and_names():
     assert directory.short_degree("нет") == ""
     assert directory.norm_name("Ёлкин  А. Б.") == "Елкин А.Б."
     assert directory.parse_emails("Лялина Е.В. - \n lyalinaev@sgau.ru") == {"Лялина Е.В.": "lyalinaev@sgau.ru"}
+
+
+def test_refresh_once_a_month_by_default(tmp_path, monkeypatch):
+    path = tmp_path / "directory.json"
+    fresh = {"fetched_at": "", "departments": [], "people": [{"full_name": "Иванов Иван Иванович", "department": ""}]}
+    monkeypatch.setattr(directory, "fetch", lambda: dict(fresh, fetched_at=directory.now().isoformat()))
+    for days, updated in ((10, False), (29, False), (31, True)):
+        stamp = (directory.now() - timedelta(days=days)).isoformat()
+        path.write_text(json.dumps(dict(fresh, fetched_at=stamp)))
+        assert bool(directory.refresh(path=path)) == updated, days

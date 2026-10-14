@@ -2,8 +2,8 @@
 
     python collector.py run    — цикл: сбор расписания в COLLECT_DAYS и COLLECT_TIMES (по умолчанию
                                  пн и чт в 03:00, по часовому поясу сайта) и по кнопке «Проверить сайт
-                                 сейчас» в версии для руководства; раз в сутки — справочник кафедр,
-                                 графики учебного процесса и резервная копия
+                                 сейчас» в версии для руководства; раз в сутки — графики учебного
+                                 процесса и резервная копия, раз в месяц — справочник кафедр
     python collector.py once   — один сбор сейчас
     python collector.py load   — только привести БД к папке снапшотов
     python collector.py backup — резервная копия data/ (сама делается раз в сутки)
@@ -168,8 +168,8 @@ DAILY_HOUR = 4          # ежедневные задачи — после 04:00
 
 
 def _daily() -> None:
-    """Раз в сутки: справочник кафедр, графики учебного процесса (новые и заменённые), резервная копия."""
-    msg = directory.refresh()                         # сам решает, пора ли (не чаще раза в сутки)
+    """Раз в сутки: графики учебного процесса (новые и заменённые), резервная копия; справочник кафедр."""
+    msg = directory.refresh()                         # сам решает, пора ли (раз в месяц)
     if msg:
         print(msg, flush=True)
     refresh_kug_background()
@@ -185,7 +185,8 @@ def run_forever(times: list[str], days: list[int] | None = None, poll_s: float =
     last_daily = now().date()
     due = next_run(now(), times, days)
     print(f"collector: сбор расписания {collect_schedule_text()}; ближайший {due:%d.%m %H:%M}; "
-          f"справочник, графики и резервная копия — ежедневно после {DAILY_HOUR:02d}:00", flush=True)
+          f"графики и резервная копия — ежедневно после {DAILY_HOUR:02d}:00, справочник кафедр — раз в "
+          f"{directory.MAX_AGE_DAYS} дней", flush=True)
     while True:
         HEARTBEAT.touch()
         kreq = kug_request_path()

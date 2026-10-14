@@ -6,8 +6,8 @@
   • страницы кафедр — состав (ФИО полностью), контакты (у части кафедр — рабочая почта
     преподавателей), список закреплённых аудиторий (преподавательская).
 
-Результат — data/directory.json; обновляет collector раз в сутки (python collector.py directory —
-вручную). Если сайт недоступен, остаётся прошлый файл. Преподаватель из расписания («Иванов И.И.»
+Результат — data/directory.json; collector обновляет его раз в MAX_AGE_DAYS дней (python collector.py
+directory — вручную). Если сайт недоступен, остаётся прошлый файл. Преподаватель из расписания («Иванов И.И.»
 или только фамилия) находится по фамилии и инициалам; совпадение по одной фамилии — только если
 она в справочнике одна.
 """
@@ -208,7 +208,10 @@ def save(data: dict, path: Path | None = None) -> None:
     tmp.replace(path)
 
 
-def refresh(max_age_h: float = 24, path: Path | None = None) -> str:
+MAX_AGE_DAYS = 30       # кафедры и состав меняются редко — раз в месяц достаточно
+
+
+def refresh(max_age_h: float = MAX_AGE_DAYS * 24, path: Path | None = None) -> str:
     """Для collector: обновить справочник, если он старше max_age_h часов."""
     path = path or directory_path()
     if path.exists():

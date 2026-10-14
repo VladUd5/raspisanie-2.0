@@ -27,7 +27,7 @@ def _load_new_snapshots() -> list[str]:
             conn.close()
     except sqlite3.Error as e:   # БД занята дольше таймаута или недоступна на запись: показываем что есть
         return [f"Новые снапшоты не загружены в базу ({e}). Обновите страницу позже; "
-                "если повторяется — см. «Если что-то не работает» в README."]
+                "если повторяется — см. «Неполадки» в README."]
     if loaded:
         st.cache_data.clear()
     return [f"Снапшот `{name}` не загружен: {err}" for name, err in errors]
