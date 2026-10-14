@@ -383,9 +383,12 @@ def _version(head: Callable[[str], str] | None, url: str) -> str:
 
 
 def marked_days(course_marks: list[str], year: int, mark: str) -> list[date]:
-    start = monday(date(year, 9, 1))
-    return [start + timedelta(weeks=w, days=d) for w, s in enumerate(course_marks) for d, ch in enumerate(s)
+    """Дни с отметкой mark с 1 сентября (в понедельник перед ним в графике стоит сноска «*»)."""
+    first = date(year, 9, 1)
+    start = monday(first)
+    days = [start + timedelta(weeks=w, days=d) for w, s in enumerate(course_marks) for d, ch in enumerate(s)
             if ch == mark]
+    return [d for d in days if d >= first]
 
 
 def save_holidays(conn: sqlite3.Connection, url: str, days: set[date]) -> None:

@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 import directory
 import kug
 from collector import read_status
-from config import feedback_db_path, public_url, reports_per_hour, site_title
+from config import collect_schedule_text, feedback_db_path, public_url, reports_per_hour, site_title
 from directory import site_base
 from feedback import store as feedback
 from labels import DAYS, SHORT_DAYS
@@ -96,7 +96,7 @@ def _directory_date() -> str:
 
 
 def render(request: Request, name: str, status_code: int = 200, **ctx) -> HTMLResponse:
-    ctx.update(site_title=site_title(), checked=_checked(), group_url=group_url, teacher_url=teacher_url,
+    ctx.update(site_title=site_title(), checked=_checked(), collect_text=collect_schedule_text(), group_url=group_url, teacher_url=teacher_url,
                room_url=room_url, discipline_url=discipline_url, person=_person, change_label=CHANGE_LABEL, feedback_kinds=feedback.KINDS, **HELPERS)
     resp = templates.TemplateResponse(request, name, ctx, status_code=status_code)
     resp.headers["Cache-Control"] = "no-cache"

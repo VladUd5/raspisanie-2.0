@@ -51,7 +51,8 @@ def test_semesters_from_graphs_and_week_parity(conn, monkeypatch):
         _file(conn, url, f"Б-В{'В' * i}", [1, 2])
         kug.save_drafts(conn, url, {1: _year(), 2: _year(date(2027, 1, 9), date(2027, 1, 25))})
     academic.reset()
-    assert academic.calendar().semesters == [(date(2026, 9, 1), date(2027, 1, 16)), (date(2027, 2, 1), date(2027, 6, 16))]
+    # с запасом: самое раннее начало (2 курс — 25 января) и самое позднее окончание
+    assert academic.calendar().semesters == [(date(2026, 9, 1), date(2027, 1, 16)), (date(2027, 1, 25), date(2027, 6, 16))]
     assert semester.semester_for(date(2027, 1, 12)) == (date(2026, 9, 1), date(2027, 1, 16))   # январь — ещё осень
     assert semester.semester_for(date(2027, 1, 20)) is None
     # чередование — от недели 1 сентября, сквозь зиму (как строка «В/Н» в графике)

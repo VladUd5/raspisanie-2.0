@@ -145,20 +145,30 @@
   <h2>Расписание в календаре телефона</h2>
   <div class="cal">
     <div>
-      <p>Подпишитесь один раз — пары, новые недели и замены сами появятся в Google, Apple или Яндекс Календаре.</p>
+      <p>Подпишитесь один раз — пары, новые недели и замены сами появятся в календаре. Праздники и подтверждённые
+        сессия, каникулы и практика в календарь не попадают.</p>
       <div class="btns">
-        <a class="btn primary" href="webcal://{{ feed }}">Подписаться{% if subgroups or forms|length > 1 %} на все занятия{% endif %}</a>
+        <a class="btn primary" href="webcal://{{ feed }}">iPhone, iPad, Mac{% if subgroups or forms|length > 1 %} — все занятия{% endif %}</a>
+        <a class="btn" href="https://calendar.google.com/calendar/r?cid={{ ('webcal://' ~ feed)|urlencode }}" target="_blank" rel="noopener">Google Календарь</a>
+        <button class="btn" type="button" data-copy="{{ base ~ ics_path }}">Скопировать ссылку</button>
+      </div>
+      {% if subgroups or forms|length > 1 %}
+      <div class="btns">
         {% for s in subgroups %}<a class="btn" href="webcal://{{ feed }}?sub={{ s }}">Только подгруппа {{ s }}</a>{% endfor %}
         {% if forms|length > 1 %}{% for f in forms if f in form_codes %}<a class="btn" href="webcal://{{ feed }}?form={{ form_codes[f][0] }}">Только {{ f|lower }} форма</a>{% endfor %}{% endif %}
       </div>
+      {% endif %}
     </div>
     <div>
       <details>
         <summary>Как подписаться вручную</summary>
         <p>Ссылка для подписки:<code>{{ base ~ ics_path }}</code></p>
+        {% if subgroups %}<p>Только одна подгруппа — добавьте к ссылке <code style="display:inline;padding:2px 6px">?sub=1</code> или <code style="display:inline;padding:2px 6px">?sub=2</code>.</p>{% endif %}
         {% if forms|length > 1 %}<p>Только одна форма обучения — добавьте к ссылке {% for f in forms if f in form_codes %}<code style="display:inline;padding:2px 6px">?form={{ form_codes[f][0] }}</code> ({{ f|lower }}){% if not loop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
-        <p><b>iPhone:</b> Настройки → Календарь → Учётные записи → Добавить → Другое → Подписной календарь → вставьте ссылку.</p>
-        <p><b>Android и Google:</b> на компьютере откройте calendar.google.com → «Другие календари» → «+» → «Добавить по URL». Google обновляет подписку раз в несколько часов.</p>
+        <p><b>iPhone:</b> кнопка «iPhone, iPad, Mac» выше или Настройки → Календарь → Учётные записи → Добавить → Другое → Подписной календарь → вставьте ссылку.</p>
+        <p><b>Google (и Android):</b> кнопка «Google Календарь» выше, или calendar.google.com → «Другие календари» → «+» → «Добавить по URL». В приложении Google Календарь на телефоне подписки добавить нельзя — откройте calendar.google.com в браузере; подписка появится и в приложении.</p>
+        <p><b>Яндекс Календарь:</b> calendar.yandex.ru → «+» рядом с «Подписки» → «Подписаться на календарь» → вставьте ссылку.</p>
+        <p>Google и Яндекс обновляют подписку сами, обычно раз в несколько часов — ускорить это нельзя. Свежее расписание всегда на этом сайте.</p>
       </details>
     </div>
   </div>

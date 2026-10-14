@@ -82,6 +82,7 @@ for f in shown[:60]:
         st.markdown(f"[{f.title}]({site_base()}{f.url}) · {f.message or ''}")
         code = st.text_input("Код групп (как в начале названия группы, например «Б-ЛА»)", f.code or "",
                              key=f"code_{f.url}")
+        rows = rows.reset_index(drop=True)
         table = pd.DataFrame({
             "Курс": rows["course"].astype(int) if not rows.empty else pd.Series(dtype=int),
             "Вид": rows["kind"].map(KIND) if not rows.empty else pd.Series(dtype=str),

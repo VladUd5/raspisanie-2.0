@@ -6,6 +6,7 @@
 дни датированные занятия отдаются со STATUS:CANCELLED.
 """
 import hashlib
+import re
 from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
@@ -87,12 +88,17 @@ def calendar(name: str, items: pd.DataFrame, rows: pd.DataFrame, changes: pd.Dat
                   f"DTSTART;TZID={tzname}:{d:%Y%m%d}T{t_from}00", f"DTEND;TZID={tzname}:{d:%Y%m%d}T{t_to}00",
                   f"SUMMARY:{_esc(title)}"]
         if les.rooms:
-            lines.append(f"LOCATION:{_esc('; '.join(f'{b}, ауд. {r}' for b, r in les.rooms))}")
+            lines.append(f"LOCATION:{_esc('; '.join(f'{b}, {_room(r)}' for b, r in les.rooms))}")
         lines.append(f"DESCRIPTION:{_esc(chr(10).join(desc))}")
         lines.append("STATUS:CANCELLED" if les.cancelled else "STATUS:CONFIRMED")
         lines.append("END:VEVENT")
     lines.append("END:VCALENDAR")
     return "\r\n".join(_fold(x) for x in lines) + "\r\n"
+
+
+def _room(r: str) -> str:
+    """«ауд. 305» и «ауд. С-413», но «Кафедра ФиС» — без «ауд.»."""
+    return f"ауд. {r}" if re.match(r"^(\d|[А-ЯЁA-Z]{1,3}-?\d)", r) else r
 
 
 def _plus90(t: str) -> str:

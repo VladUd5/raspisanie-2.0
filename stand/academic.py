@@ -5,9 +5,11 @@
   MIN_VOTES файлах (так попадают переносы январских праздников по постановлению правительства);
   HOLIDAYS_EXTRA / WORKDAYS_EXTRA в .env — ручная правка («2027-01-02,2027-05-10»).
 - Периоды курса (теория, сессия, каникулы, практика) — только подтверждённые учебным отделом.
-- Семестры по графикам: самое частое начало теории осенью и весной и самое позднее окончание,
-  встретившееся хотя бы в MIN_VOTES файлах (черновики тоже голосуют — ошибки одного скана тонут
-  в большинстве). semester.py берёт их, когда даты не заданы в .env.
+- Семестры по графикам очной и очно-заочной форм (у заочников «пусто» в графике — самостоятельная
+  работа, а не пары): от самого раннего начала теории до самого позднего окончания, которые
+  встретились хотя бы у MIN_VOTES курсов (черновики тоже голосуют — ошибка одного скана тонет в
+  большинстве). Границы нарочно с запасом: точные даты группы дают её подтверждённые периоды, а
+  общие не должны прятать настоящие пары. semester.py берёт их, когда даты не заданы в .env.
 
 Данные читаются из feedback.db и держатся в памяти, пока файл базы не изменится.
 """
@@ -88,22 +90,25 @@ def build(conn: sqlite3.Connection) -> Calendar:
     return cal
 
 
+WEEKLY_FORMS = ("Очная", "Очно-заочная")
+
+
 def _semesters(periods: dict) -> list[tuple[date, date]]:
-    """Осенний и весенний семестры по всем курсам: (начало теории, конец теории)."""
+    """Осенний и весенний семестры по курсам очной и очно-заочной форм: (начало, конец) теории."""
     out = []
     for autumn in (True, False):
         starts, ends = Counter(), Counter()
-        for ps in periods.values():
-            theory = [(a, b) for k, a, b in ps if k == "theory"]
-            pick = [t for t in theory if (t[0].month >= 8) == autumn]
+        for (_code, form, _course), ps in periods.items():
+            if form not in WEEKLY_FORMS:
+                continue
+            pick = [(a, b) for k, a, b in ps if k == "theory" and (a.month >= 8) == autumn]
             if pick:
                 starts[pick[0][0]] += 1
                 ends[pick[0][1]] += 1
-        if not starts or starts.most_common(1)[0][1] < MIN_VOTES:
-            continue
-        start = starts.most_common(1)[0][0]
-        common_ends = [e for e, n in ends.items() if n >= MIN_VOTES] or [ends.most_common(1)[0][0]]
-        out.append((start, max(common_ends)))
+        s = [d for d, n in starts.items() if n >= MIN_VOTES]
+        e = [d for d, n in ends.items() if n >= MIN_VOTES]
+        if s and e and min(s) <= max(e):
+            out.append((min(s), max(e)))
     return sorted(out)
 
 

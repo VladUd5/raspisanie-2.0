@@ -122,6 +122,16 @@
     if (!document.hidden && Date.now() - fetched >= REFRESH) refreshNow();
   });
 
+  // ── «Скопировать ссылку» подписки на календарь
+  document.querySelectorAll("[data-copy]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var text = b.getAttribute("data-copy"), label = b.textContent;
+      var done = function () { b.textContent = "Ссылка скопирована"; setTimeout(function () { b.textContent = label; }, 2000); };
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () { prompt("Ссылка для подписки:", text); });
+      else prompt("Ссылка для подписки:", text);
+    });
+  });
+
   var pins = load("pinned-pages");
   tiles("pinned", pins);
   tiles("recent", load("recent-pages").filter(function (x) { return !pins.some(function (p) { return p.url === x.url; }); }).slice(0, 6));
