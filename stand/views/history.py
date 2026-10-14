@@ -3,14 +3,15 @@ from datetime import datetime
 import streamlit as st
 
 import collector
-from config import collect_times, env_date
+from config import collect_schedule_text
 from labels import ru
 from semester import semester_for, today, tz
 from ui import data, status
 
 st.title("История сборов")
-st.caption(f"Сбор с сайта вуза идёт автоматически: каждый день в {', '.join(collect_times())}. "
-           "Версия, которая ничем не отличается от прошлой, не сохраняется.")
+st.caption(f"Сбор расписания с сайта вуза идёт автоматически {collect_schedule_text()} (COLLECT_DAYS, "
+           "COLLECT_TIMES в .env) и по кнопке «Проверить сайт сейчас». Версия, которая ничем не отличается "
+           "от прошлой, не сохраняется.")
 
 st_ = collector.read_status()
 with st.container(border=True):
@@ -18,19 +19,15 @@ with st.container(border=True):
     if st_:
         st.caption(f"Последняя проверка: {st_.get('checked_at', '')[:16].replace('T', ' ')} ({st_.get('reason', '')}). "
                    f"{st_.get('message', '')}")
-    if st.button("Проверить сайт сейчас"):
-        if collector.request_collect():
-            st.success("Запрос отправлен. Обход сайта занимает несколько минут — обновите страницу позже.")
-        else:
-            st.info("Сайт проверяли меньше 10 минут назад. Попробуйте позже.")
+    status.collect_button("collect_history")
 
 with st.container(border=True):
-    st.markdown("**Даты семестров** (задаются в файле `.env` на сервере)")
+    st.markdown("**Даты семестров** — по графикам учебного процесса; в `.env` на сервере их можно задать вручную, "
+                "тогда они главнее")
     sem = semester_for(today())
-    st.caption(f"Осень: {env_date('AUTUMN_START') or '09-01'} – {env_date('AUTUMN_END') or '12-31'} · "
-               f"весна: {env_date('SPRING_START') or 'не задана'} – {env_date('SPRING_END') or '06-30'}. "
+    st.caption(" · ".join(status.semester_lines() or ["Семестры этого учебного года ещё неизвестны"]) + ". "
                + (f"Сейчас идёт семестр {sem[0]:%d.%m.%Y}–{sem[1]:%d.%m.%Y}." if sem else
-                  "Сегодня не попадает ни в один семестр."))
+                  "Сегодня — между семестрами или вне учебного года."))
 
 snaps = data.snapshots()
 if snaps.empty:

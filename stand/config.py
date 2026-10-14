@@ -63,7 +63,29 @@ def request_path() -> Path:
 
 
 def collect_times() -> list[str]:
-    return [t.strip() for t in os.environ.get("COLLECT_TIMES", "03:00,13:00").split(",") if t.strip()]
+    return [t.strip() for t in os.environ.get("COLLECT_TIMES", "03:00").split(",") if t.strip()]
+
+
+DAY_CODES = {"пн": 0, "вт": 1, "ср": 2, "чт": 3, "пт": 4, "сб": 5, "вс": 6,
+             "mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+DAY_NAMES = ["понедельник", "вторник", "среду", "четверг", "пятницу", "субботу", "воскресенье"]
+
+
+def collect_days() -> list[int]:
+    """Дни сбора расписания (0 — понедельник): COLLECT_DAYS=пн,чт (или mon,thu; «каждый» — все дни)."""
+    raw = os.environ.get("COLLECT_DAYS", "пн,чт").strip().lower()
+    if raw in ("каждый", "все", "daily", "*"):
+        return list(range(7))
+    days = sorted({DAY_CODES[x.strip()] for x in raw.split(",") if x.strip() in DAY_CODES})
+    return days or [0, 3]
+
+
+def collect_schedule_text() -> str:
+    """«в понедельник и четверг в 03:00» — для подписей в версии для руководства."""
+    days = collect_days()
+    when = "каждый день" if len(days) == 7 else "в " + " и ".join(
+        filter(None, [", ".join(DAY_NAMES[d] for d in days[:-1]), DAY_NAMES[days[-1]]]))
+    return f"{when} в {', '.join(collect_times())}"
 
 
 def publish_min_ratio() -> float:

@@ -11,7 +11,10 @@ from ui import data, filters, status
 
 st.title("Сводка")
 wt = {"numerator": "верхняя неделя", "denominator": "нижняя неделя"}.get(week_type_on(today()), "вне семестра")
-st.caption(f"Сегодня {today():%d.%m.%Y}, {wt} · {status.checked_text()}")
+head, btn = st.columns([4, 1], vertical_alignment="bottom")
+head.caption(f"Сегодня {today():%d.%m.%Y}, {wt} · {status.checked_text()}")
+with btn:
+    status.collect_button("collect_summary")
 
 changes = data.changes()
 week_ago = (today() - timedelta(days=7)).isoformat()

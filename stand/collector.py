@@ -1,7 +1,9 @@
 """Сбор по расписанию (контейнер collector) — единственный писатель schedule.db в проде.
 
-    python collector.py run    — цикл: сбор в COLLECT_TIMES (по часовому поясу сайта) и по запросу
-                                 «проверить сайт сейчас» из версии для руководства
+    python collector.py run    — цикл: сбор расписания в COLLECT_DAYS и COLLECT_TIMES (по умолчанию
+                                 пн и чт в 03:00, по часовому поясу сайта) и по кнопке «Проверить сайт
+                                 сейчас» в версии для руководства; раз в сутки — справочник кафедр,
+                                 графики учебного процесса и резервная копия
     python collector.py once   — один сбор сейчас
     python collector.py load   — только привести БД к папке снапшотов
     python collector.py backup — резервная копия data/ (сама делается раз в сутки)
@@ -20,8 +22,8 @@ from pathlib import Path
 import backup
 import directory
 import kug
-from config import (collect_timeout_s, db_path, feedback_db_path, kug_request_path, parser_url, request_path,
-                    schedule_url, snapshots_dir, status_path)
+from config import (collect_schedule_text, collect_timeout_s, db_path, feedback_db_path, kug_request_path,
+                    parser_url, request_path, schedule_url, snapshots_dir, status_path)
 from etl.collect import CollectError, collect
 from etl.load import connect, ensure_loaded, read_snapshot
 from semester import now
@@ -95,13 +97,17 @@ def run_once(reason: str = "по расписанию") -> dict:
                           "message": f"Загружена новая версия расписания ({path.name})."})
 
 
-def next_run(after: datetime, times: list[str]) -> datetime:
-    """Ближайшее время сбора строго после after (в его часовом поясе)."""
+def next_run(after: datetime, times: list[str], days: list[int] | None = None) -> datetime:
+    """Ближайшее время сбора строго после after (в его часовом поясе) в один из дней недели days."""
+    days = list(range(7)) if days is None else days
     cands = []
-    for day in (0, 1):
+    for day in range(8):
+        d = after + timedelta(days=day)
+        if d.weekday() not in days:
+            continue
         for t in times:
             h, m = map(int, t.split(":"))
-            dt = (after + timedelta(days=day)).replace(hour=h, minute=m, second=0, microsecond=0)
+            dt = d.replace(hour=h, minute=m, second=0, microsecond=0)
             if dt > after:
                 cands.append(dt)
     return min(cands)
@@ -158,19 +164,28 @@ def _backup() -> None:
         print(f"резервная копия не сделана: {e}", flush=True)
 
 
-def run_forever(times: list[str], poll_s: float = 15) -> None:
+DAILY_HOUR = 4          # ежедневные задачи — после 04:00 (не в полночь и не вместе со сбором в 03:00)
+
+
+def _daily() -> None:
+    """Раз в сутки: справочник кафедр, графики учебного процесса (новые и заменённые), резервная копия."""
+    msg = directory.refresh()                         # сам решает, пора ли (не чаще раза в сутки)
+    if msg:
+        print(msg, flush=True)
+    refresh_kug_background()
+    _backup()
+
+
+def run_forever(times: list[str], days: list[int] | None = None, poll_s: float = 15) -> None:
     HEARTBEAT.touch()
     errors = load_db()
     for name, err in errors:
         print(f"снапшот {name} не загружен: {err}", flush=True)
-    msg = directory.refresh()
-    if msg:
-        print(msg, flush=True)
-    refresh_kug_background()                          # при старте: только новые файлы, в фоне
-    last_kug = now().date()
-    _backup()                                         # при старте — если за сегодня копии ещё нет
-    due = next_run(now(), times)
-    print(f"collector: сбор в {', '.join(times)}; ближайший {due:%d.%m %H:%M}", flush=True)
+    _daily()                                          # при старте; дальше — раз в сутки
+    last_daily = now().date()
+    due = next_run(now(), times, days)
+    print(f"collector: сбор расписания {collect_schedule_text()}; ближайший {due:%d.%m %H:%M}; "
+          f"справочник, графики и резервная копия — ежедневно после {DAILY_HOUR:02d}:00", flush=True)
     while True:
         HEARTBEAT.touch()
         kreq = kug_request_path()
@@ -184,19 +199,15 @@ def run_forever(times: list[str], poll_s: float = 15) -> None:
             print(run_once("по запросу")["message"], flush=True)
         elif now() >= due:
             print(run_once()["message"], flush=True)
-            due = next_run(now(), times)
-            msg = directory.refresh()                    # не чаще раза в сутки
-            if msg:
-                print(msg, flush=True)
-            if last_kug != now().date():                  # раз в сутки: только новые файлы
-                refresh_kug_background()
-                last_kug = now().date()
-            _backup()                                     # раз в сутки (за день — один архив)
+            due = next_run(now(), times, days)
+        if last_daily != now().date() and now().hour >= DAILY_HOUR:
+            _daily()
+            last_daily = now().date()
         time.sleep(poll_s)
 
 
 if __name__ == "__main__":
-    from config import collect_times
+    from config import collect_days, collect_times
     cmd = sys.argv[1] if len(sys.argv) > 1 else "run"
     if cmd == "once":
         print(run_once("вручную")["message"])
@@ -210,4 +221,4 @@ if __name__ == "__main__":
         for name, err in load_db():
             print(f"снапшот {name} не загружен: {err}")
     else:
-        run_forever(collect_times())
+        run_forever(collect_times(), collect_days())
