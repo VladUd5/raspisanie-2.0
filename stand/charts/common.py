@@ -15,6 +15,8 @@ SEQUENTIAL = ["#e3f1e7", "#bfe0c9", "#94cba6", "#64b07f", "#3d9260", "#22704a", 
 BRAND = {"light": "#2f7a50", "dark": "#4fae78"}            # одна серия — фирменный зелёный
 LESSON_TYPES = ["лекция", "практика", "лабораторная", "семинар", "консультация", "зачёт", "экзамен", "не определён"]
 FONT = "Golos, system-ui, -apple-system, 'Segoe UI', sans-serif"
+INK = {"light": "#15201A", "dark": "#E7EEEA"}             # заголовки (как текст сайта)
+INK_2 = {"light": "#34433A", "dark": "#C3CFC8"}           # подписи осей: тема Streamlit делает их мелкими и бледными
 
 
 def type_colors(mode: str) -> dict[str, str]:
@@ -22,12 +24,14 @@ def type_colors(mode: str) -> dict[str, str]:
     return {**dict(zip(LESSON_TYPES[:7], SERIES[mode])), "не определён": NEUTRAL}
 
 
-def _finish(fig: go.Figure, title: str, height: int) -> go.Figure:
-    fig.update_layout(title=dict(text=title, x=0, xanchor="left"), height=height,
-                      margin=dict(l=8, r=8, t=48, b=8), font=dict(family=FONT),
-                      barcornerradius=4, hoverlabel=dict(font=dict(family=FONT)))
-    fig.update_xaxes(showgrid=True, gridwidth=1, zeroline=False)
-    fig.update_yaxes(showgrid=False, zeroline=False)
+def _finish(fig: go.Figure, title: str, height: int, mode: str = "light") -> go.Figure:
+    axis = dict(tickfont=dict(size=12.5, color=INK_2[mode]), title_font=dict(size=13, color=INK_2[mode]))
+    fig.update_layout(title=dict(text=title, x=0, xanchor="left", font=dict(size=15, color=INK[mode])), height=height,
+                      margin=dict(l=8, r=8, t=48, b=8), font=dict(family=FONT, size=13, color=INK_2[mode]),
+                      barcornerradius=4, hoverlabel=dict(font=dict(family=FONT, size=13)),
+                      legend=dict(font=dict(size=13, color=INK_2[mode])))
+    fig.update_xaxes(showgrid=True, gridwidth=1, zeroline=False, **axis)
+    fig.update_yaxes(showgrid=False, zeroline=False, **axis)
     return fig
 
 
@@ -40,7 +44,7 @@ def bar_h(df: pd.DataFrame, label: str, value: str, title: str, value_title: str
         hovertemplate=f"%{{y}}<br>{value_title}: %{{x:.2f}}<extra></extra>"))
     fig.update_layout(bargap=0.35)
     fig.update_xaxes(title=value_title)
-    return _finish(fig, title, max(240, 26 * len(d) + 90))
+    return _finish(fig, title, max(240, 26 * len(d) + 90), mode)
 
 
 def histogram(bins: pd.DataFrame, step: float, title: str, value_title: str, count_title: str,
@@ -52,11 +56,11 @@ def histogram(bins: pd.DataFrame, step: float, title: str, value_title: str, cou
         hovertemplate=f"%{{customdata}} {value_title}<br>{count_title}: %{{y}}<extra></extra>"))
     if median is not None:
         fig.add_vline(x=median, line=dict(color=NEUTRAL, width=2, dash="dash"),
-                      annotation=dict(text=f"медиана {median:g}", font=dict(color=NEUTRAL)),
+                      annotation=dict(text=f"медиана {median:g}", font=dict(size=12.5, color=NEUTRAL)),
                       annotation_position="top right")
     fig.update_xaxes(title=value_title)
     fig.update_yaxes(title=count_title, showgrid=True)
-    return _finish(fig, title, 320)
+    return _finish(fig, title, 320, mode)
 
 
 def bar_by_type(df: pd.DataFrame, type_col: str, value: str, title: str, value_title: str,
@@ -69,7 +73,7 @@ def bar_by_type(df: pd.DataFrame, type_col: str, value: str, title: str, value_t
         hovertemplate=f"%{{y}}<br>{value_title}: %{{x:.2f}}<extra></extra>"))
     fig.update_layout(bargap=0.35)
     fig.update_xaxes(title=value_title)
-    return _finish(fig, title, max(200, 30 * len(d) + 90))
+    return _finish(fig, title, max(200, 30 * len(d) + 90), mode)
 
 
 def stacked_by_type(df: pd.DataFrame, label: str, value: str, title: str, value_title: str,
@@ -86,7 +90,7 @@ def stacked_by_type(df: pd.DataFrame, label: str, value: str, title: str, value_
                     marker=dict(color=colors[t], line=dict(color=SURFACE[mode], width=1)),
                     hovertemplate=f"%{{y}}<br>{t}: %{{x:.2f}} {value_title}<extra></extra>")
     fig.update_xaxes(title=value_title)
-    fig = _finish(fig, title, max(260, 26 * len(order) + 160))
+    fig = _finish(fig, title, max(260, 26 * len(order) + 160), mode)
     # легенда — над областью графика, под заголовком: снизу она перекрывала подписи оси
     fig.update_layout(barmode="stack", bargap=0.35, margin=dict(t=84),
                       title=dict(y=0.98, yanchor="top"),
@@ -101,8 +105,8 @@ def heatmap(pivot: pd.DataFrame, title: str, value_title: str, mode: str = "ligh
     fig = go.Figure(go.Heatmap(
         z=pivot.values, x=[str(c) for c in pivot.columns], y=[str(i) for i in pivot.index],
         colorscale=[[i / (len(scale) - 1), c] for i, c in enumerate(scale)], xgap=2, ygap=2,
-        colorbar=dict(title=value_title, thickness=12),
+        colorbar=dict(title=dict(text=value_title, side="right"), thickness=12, tickfont=dict(size=12)),
         hovertemplate=f"%{{y}} · %{{x}}<br>{value_title}: %{{z:.2f}}<extra></extra>"))
     fig.update_yaxes(autorange="reversed", showgrid=False)
     fig.update_xaxes(showgrid=False, type="category")
-    return _finish(fig, title, max(260, 34 * len(pivot.index) + 120))
+    return _finish(fig, title, max(260, 34 * len(pivot.index) + 120), mode)

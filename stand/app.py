@@ -81,6 +81,6 @@ pages = st.navigation({
         st.Page("views/quality.py", title="Качество данных", icon=":material/rule:"),
         st.Page("views/spellings.py", title="Словарь написаний", icon=":material/spellcheck:"),
     ],
-})
+}, expanded=True)  # иначе Streamlit сворачивает хвост меню под английскую кнопку «View N more»
 st.session_state["ctx"] = filters.sidebar()
 pages.run()
