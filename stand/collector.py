@@ -25,6 +25,9 @@ from etl.load import connect, ensure_loaded, read_snapshot
 from semester import now
 
 MIN_REQUEST_INTERVAL = timedelta(minutes=10)   # «проверить сейчас» не чаще
+# Пульс цикла: проверка здоровья контейнера (healthcheck.py file) перезапускает collector, если файл
+# долго не обновлялся — цикл завис (сбор ограничен COLLECT_TIMEOUT_S, поэтому порог с запасом).
+HEARTBEAT = Path("/tmp/collector.alive")
 
 
 def read_status(path: Path | None = None) -> dict:
@@ -139,6 +142,7 @@ def refresh_kug(force: bool = False) -> str:
 
 
 def run_forever(times: list[str], poll_s: float = 15) -> None:
+    HEARTBEAT.touch()
     errors = load_db()
     for name, err in errors:
         print(f"снапшот {name} не загружен: {err}", flush=True)
@@ -150,6 +154,7 @@ def run_forever(times: list[str], poll_s: float = 15) -> None:
     due = next_run(now(), times)
     print(f"collector: сбор в {', '.join(times)}; ближайший {due:%d.%m %H:%M}", flush=True)
     while True:
+        HEARTBEAT.touch()
         kreq = kug_request_path()
         if kreq.exists():
             kreq.unlink(missing_ok=True)
