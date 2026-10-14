@@ -91,8 +91,10 @@
   </div>
   {% if up.state == 'now' %}<div class="bar" role="progressbar" aria-label="Прошло пары" aria-valuenow="{{ up.progress }}" aria-valuemin="0" aria-valuemax="100"><i style="width: {{ up.progress }}%"></i></div>{% endif %}
   {% if up.state in ('now', 'next') %}
-  {%- set n = up.left_today %}
-  <div class="then">{% if n > 0 %}Потом сегодня ещё {{ {1: 'одна', 2: 'две', 3: 'три', 4: 'четыре'}.get(n, n) }} {{ plural(n, 'пара', 'пары', 'пар') }}{% else %}Это последняя пара сегодня{% endif %}</div>
+  {#- идёт: остаток после неё; следующая: вместе с ней #}
+  {%- set n = up.left_today + (1 if up.state == 'next' else 0) %}
+  {%- set last = n == (1 if up.state == 'next' else 0) %}
+  <div class="then">{% if last %}Это последняя пара сегодня{% else %}Сегодня {{ plural(n, 'осталась', 'осталось', 'осталось') }} {{ n }} {{ plural(n, 'пара', 'пары', 'пар') }}{% endif %}</div>
   {% endif %}
 </section>
 {% endif %}
