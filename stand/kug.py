@@ -307,6 +307,45 @@ def save_drafts(conn: sqlite3.Connection, url: str, found: dict[int, list[tuple]
     return n
 
 
+MAX_SESSION_DAYS = 45      # дольше — скорее всего, слились сессия и соседние недели
+MAX_PERIODS = 12           # больше — график распознан раздробленно
+
+
+def review_flags(message: str, by_course: dict[int, list[tuple[str, date, date]]]) -> list[str]:
+    """Что в черновике графика стоит проверить глазами; пусто — можно подтверждать без просмотра."""
+    out = []
+    if "проверьте" in (message or ""):
+        out.append("число курсов на скане не совпало с названием файла")
+    if "сверьте" in (message or ""):
+        out.append("график заменён на сайте вуза — сверьте с подтверждённым")
+    for course, ps in sorted(by_course.items()):
+        kinds = [k for k, _a, _b in ps]
+        if not any(k == "theory" and (b - a).days >= 13 for k, a, b in ps):
+            out.append(f"{course} курс: нет теоретического обучения")
+        if "session" not in kinds:
+            out.append(f"{course} курс: сессия не найдена")
+        if any(k == "session" and (b - a).days > MAX_SESSION_DAYS for k, a, b in ps):
+            out.append(f"{course} курс: сессия длиннее {MAX_SESSION_DAYS} дней")
+        if len(ps) > MAX_PERIODS:
+            out.append(f"{course} курс: {len(ps)} периодов — распознано раздробленно")
+    return out
+
+
+def drafts_by_file(conn: sqlite3.Connection) -> dict[str, dict[int, list[tuple[str, date, date]]]]:
+    out: dict = {}
+    for url, course, kind, a, b in conn.execute("SELECT file_url, course, kind, start_date, end_date FROM sessions "
+                                                "WHERE status = 'draft' ORDER BY start_date"):
+        out.setdefault(url, {}).setdefault(course, []).append((kind, date.fromisoformat(a), date.fromisoformat(b)))
+    return out
+
+
+def clean_drafts(conn: sqlite3.Connection) -> list[str]:
+    """Графики с черновиком без пометок review_flags — их можно подтвердить разом."""
+    msgs = dict(conn.execute("SELECT url, message FROM kug_files WHERE status = 'ok'").fetchall())
+    return [url for url, by_course in drafts_by_file(conn).items()
+            if url in msgs and not review_flags(msgs[url], by_course)]
+
+
 def confirm_drafts(conn: sqlite3.Connection, url: str) -> None:
     """«Подтвердить черновик как есть»: по курсам, где есть черновик, он заменяет подтверждённое."""
     with conn:

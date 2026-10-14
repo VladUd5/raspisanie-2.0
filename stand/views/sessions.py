@@ -31,21 +31,47 @@ if sess.empty:
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Графиков", len(files), border=True)
 drafts = set(sess.loc[sess["status"] == "draft", "file_url"])
-c2.metric("Графиков на проверку", len(drafts), border=True)
-c3.metric("Подтверждённых графиков", len(set(sess.loc[sess["status"] == "confirmed", "file_url"]) - drafts), border=True)
+c2.metric("На проверку", len(drafts), border=True)
+c3.metric("Подтверждено", len(set(sess.loc[sess["status"] == "confirmed", "file_url"]) - drafts), border=True)
 c4.metric("Не прочитано", int((files["status"] == "error").sum()) if not files.empty else 0, border=True)
 
-left, right = st.columns([3, 1])
-with right:
-    if st.button("Проверить графики", icon=":material/refresh:", help="Найти новые графики на сайте вуза и распознать их"):
-        path = kug_request_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(now().isoformat(timespec="seconds"), encoding="utf-8")
-        st.success("Запрос отправлен: новые графики будут разобраны в течение нескольких минут.")
-with left:
-    show = st.segmented_control("Показать", ["На проверку", "Подтверждённые", "Без кода группы", "Все"],
-                                default="На проверку", required=True)
-    text = st.text_input("Программа или код группы", placeholder="например, Б-ЛА или Агрономия")
+draft_periods = kug.drafts_by_file(conn)
+flags = {f.url: kug.review_flags(f.message, draft_periods[f.url]) for f in files.itertuples() if f.url in draft_periods}
+clean = kug.clean_drafts(conn)
+
+
+@st.dialog("Подтвердить графики без пометок")
+def _confirm_clean(urls: list[str]) -> None:
+    st.write(f"Черновики **{len(urls)}** графиков распознаны без пометок: у каждого курса есть теоретическое "
+             "обучение и сессия, сессии не длиннее 45 дней, число курсов совпало с названием файла, график не "
+             "менялся на сайте после подтверждения.")
+    st.write("После подтверждения студенты этих групп увидят даты сессий, а в дни сессии, каникул и практики "
+             "у них не будет еженедельных пар. Ошибку в конкретном графике можно исправить позже — правка и "
+             "«Сохранить» в его карточке.")
+    if st.button(f"Подтвердить {len(urls)}", type="primary"):
+        for url in urls:
+            kug.confirm_drafts(conn, url)
+        st.session_state["confirmed_clean"] = len(urls)
+        st.rerun()
+
+
+with st.container(horizontal=True):
+    check = st.button("Проверить графики", icon=":material/refresh:",
+                      help="Найти новые и заменённые графики на сайте вуза и распознать их")
+    if st.button(f"Подтвердить без пометок: {len(clean)}", icon=":material/done_all:", disabled=not clean,
+                 help="Подтвердить черновики всех графиков, где проверка не нашла ничего подозрительного"):
+        _confirm_clean(clean)
+if check:
+    path = kug_request_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(now().isoformat(timespec="seconds"), encoding="utf-8")
+    st.success("Запрос отправлен: новые и заменённые графики будут разобраны в течение нескольких минут.")
+show = st.segmented_control("Показать", ["На проверку", "С пометками", "Подтверждённые", "Без кода группы", "Все"],
+                            default="На проверку", required=True)
+text = st.text_input("Программа или код группы", placeholder="например, Б-ЛА или Агрономия")
+
+if st.session_state.pop("confirmed_clean", None):
+    st.success("Графики без пометок подтверждены. Остальные — в списке «С пометками» и «На проверку».")
 
 if files.empty:
     st.info("Графики ещё не загружались. Нажмите «Проверить графики» — collector разберёт их "
@@ -64,6 +90,8 @@ def _keep(f) -> bool:
         return False
     if show == "На проверку":
         return (rows["status"] == "draft").any() or f.status == "error"
+    if show == "С пометками":
+        return bool(flags.get(f.url))
     if show == "Подтверждённые":
         return (rows["status"] == "confirmed").any()
     if show == "Без кода группы":
@@ -77,9 +105,11 @@ for f in shown[:60]:
     rows = sess[sess["file_url"] == f.url]
     n_draft = int((rows["status"] == "draft").sum())
     head = f"{f.code or '— код не определён —'} · {f.form} · {f.program} · {FILE_STATUS.get(f.status, f.status)}" + \
-           (f" · черновиков: {n_draft}" if n_draft else "")
-    with st.expander(head, expanded=False):
+           (f" · черновиков: {n_draft}" if n_draft else "") + (" · есть пометки" if flags.get(f.url) else "")
+    with st.expander(head, expanded=False, icon=":material/warning:" if flags.get(f.url) else None):
         st.markdown(f"[{f.title}]({site_base()}{f.url}) · {f.message or ''}")
+        for fl in flags.get(f.url, []):
+            st.warning(fl, icon=":material/warning:")
         code = st.text_input("Код групп (как в начале названия группы, например «Б-ЛА»)", f.code or "",
                              key=f"code_{f.url}")
         rows = rows.reset_index(drop=True)

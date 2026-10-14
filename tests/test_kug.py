@@ -198,3 +198,24 @@ def test_refresh_rereads_file_changed_on_site(tmp_path, monkeypatch):
     drafts = conn.execute("SELECT kind, start_date FROM sessions WHERE status = 'draft' AND kind = 'session' "
                           "AND course = 1 AND file_url LIKE '%Grafik_B-LA%'").fetchall()
     assert [tuple(r) for r in drafts] == [("session", "2027-01-11")]
+
+
+def test_review_flags_and_clean_drafts(tmp_path):
+    conn = store.connect(tmp_path / "f.db")
+    good = [("theory", date(2026, 9, 1), date(2027, 1, 16)), ("session", date(2027, 1, 18), date(2027, 1, 28)),
+            ("vacation", date(2027, 1, 29), date(2027, 2, 6))]
+    assert kug.review_flags("распознано периодов: 3", {1: good}) == []
+    flags = kug.review_flags("на скане 2 курса(ов), в названии — 3: проверьте номера курсов",
+                             {1: good, 2: [("practice", date(2026, 9, 1), date(2027, 8, 28))],
+                              3: [("theory", date(2026, 9, 1), date(2026, 10, 1)),
+                                  ("session", date(2026, 10, 2), date(2026, 12, 1))]})
+    assert flags == ["число курсов на скане не совпало с названием файла", "2 курс: нет теоретического обучения",
+                     "2 курс: сессия не найдена", "3 курс: сессия длиннее 45 дней"]
+    for name, msg, periods in (("a", "ok", good), ("b", "проверьте номера курсов", good),
+                               ("c", "ok", good[:1])):
+        f = kug.KugFile(f"/f/{name}.pdf", "График", "П", "Очная", f"Б-{name.upper()}", [1])
+        kug.save_file(conn, f, "ok", msg)
+        kug.save_drafts(conn, f.url, {1: periods})
+    assert kug.clean_drafts(conn) == ["/f/a.pdf"]
+    kug.confirm_drafts(conn, "/f/a.pdf")
+    assert kug.clean_drafts(conn) == []                      # подтверждённое — уже не черновик
