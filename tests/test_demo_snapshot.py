@@ -11,8 +11,8 @@ from analytics import queries as q
 from etl.load import connect, load_snapshot
 
 ROOT = Path(__file__).parent.parent
-# Словарь написаний проверен на этом снапшоте; новые сборы рядом с ним тест не трогают.
-DEMO = [p for p in [ROOT / "data" / "snapshots" / "2026-10-07_144819.json"] if p.exists()]
+# Снапшот нового парсера (по геометрии); прежний, 2026-10-07, сделан старым парсером и удалён.
+DEMO = [p for p in [ROOT / "data" / "snapshots" / "2026-10-09_150932.json"] if p.exists()]
 APP = str(ROOT / "stand" / "app.py")
 PAGES = ["summary", "teachers", "rooms", "disciplines", "groups", "infographics", "changes", "reports", "sessions", "history",
          "quality", "spellings", "export"]
